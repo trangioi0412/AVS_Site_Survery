@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TopBar } from "../app-shell/top-bar";
 import { MainSidebar } from "../app-shell/main-sidebar";
 import { BottomToolbar } from "../app-shell/bottom-toolbar";
@@ -13,10 +13,22 @@ import { OutputPanel } from "./survey-panel/output-panel";
 import { ThreeViewport } from "./viewport/three-viewport";
 import { HardDrive, Camera, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEditorStore } from "@/stores/editor-store";
 
 export const EditorLayout: React.FC = () => {
   const [leftTab, setLeftTab] = useState<"library" | "layers">("library");
   const [bottomTab, setBottomTab] = useState<"infra" | "preview" | "output">("infra");
+
+  const { initFromUrl, currentProject, currentRoom } = useEditorStore();
+
+  // URL Query Parameters initialization
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const projParam = params.get("project");
+    const roomParam = params.get("room");
+    initFromUrl(projParam, roomParam);
+  }, [initFromUrl]);
 
   return (
     <div className="flex flex-col w-screen h-screen bg-background overflow-hidden text-text-primary">
@@ -115,7 +127,7 @@ export const EditorLayout: React.FC = () => {
               </div>
 
               <div className="text-[11px] text-text-secondary hidden sm:inline">
-                Khảo sát phòng họp Meeting Room 501 • AVS Site Planner
+                {currentProject.name} • {currentRoom.name} • AVS Site Planner
               </div>
             </div>
 

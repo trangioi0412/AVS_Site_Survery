@@ -70,7 +70,7 @@ export const PreviewPanel: React.FC = () => {
           <div className="w-full h-full rounded-md border border-dashed border-border/80 bg-surface-2/40 flex flex-col items-center justify-center text-text-secondary p-3 text-center">
             <Camera className="w-6 h-6 text-text-secondary/50 mb-1" />
             <span className="text-[11px]">Chưa có ảnh chụp</span>
-            <span className="text-[10px] text-text-secondary/60">Bấm "Chụp ảnh" để lưu góc nhìn 3D hiện tại</span>
+            <span className="text-[10px] text-text-secondary/60">Bấm &quot;Chụp ảnh&quot; để lưu góc nhìn 3D hiện tại</span>
           </div>
         )}
       </div>

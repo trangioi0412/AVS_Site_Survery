@@ -31,7 +31,6 @@ import {
   X,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
-import { MOCK_PROJECTS_LIST, MOCK_ROOMS_LIST } from "@/data/mock-project";
 import { ProjectInfo, RoomInfo } from "@/types/equipment";
 import { toast } from "sonner";
 import { exportSceneToJson, exportBomToCsv } from "@/lib/export-helpers";
@@ -45,10 +44,13 @@ export const TopBar: React.FC = () => {
     historyIndex,
     history,
     objects,
+    projects,
+    rooms,
     currentProject,
     currentRoom,
     isDirty,
     lastSavedAt,
+    createProject,
     switchProject,
     switchRoom,
     updateRoomDimensions,
@@ -123,31 +125,17 @@ export const TopBar: React.FC = () => {
       return;
     }
 
-    const newProj: ProjectInfo = {
-      id: `project-${Date.now()}`,
+    createProject({
       name: newProjectName.trim(),
-      customer: newProjectCustomer.trim() || "Khách hàng mới",
-      location: newProjectLocation.trim() || "Việt Nam",
-      status: "surveying",
-      updatedAt: "Vừa xong",
-    };
+      customer: newProjectCustomer.trim(),
+      location: newProjectLocation.trim(),
+    });
 
-    MOCK_PROJECTS_LIST.push(newProj);
-    MOCK_ROOMS_LIST[newProj.id] = [
-      {
-        id: `room-${Date.now()}`,
-        name: "Phòng họp chính",
-        type: "meeting-room",
-        dimensions: { width: 8, length: 10, height: 3.2 },
-      },
-    ];
-
-    switchProject(newProj);
     setShowNewProjectModal(false);
     setNewProjectName("");
     setNewProjectCustomer("");
     setNewProjectLocation("");
-    toast.success(`Đã tạo và chuyển sang dự án "${newProj.name}"!`);
+    toast.success(`Đã tạo và chuyển sang dự án "${newProjectName.trim()}"!`);
   };
 
   // Handle Room Dimension Update
@@ -257,11 +245,11 @@ export const TopBar: React.FC = () => {
               {projectDropdownOpen && (
                 <div className="absolute left-0 top-full mt-1.5 w-60 bg-surface-2 border border-border rounded-md shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95">
                   <div className="px-3 py-1.5 text-[10px] font-mono uppercase text-text-secondary border-b border-border/60 flex items-center justify-between">
-                    <span>Danh sách Dự Án ({MOCK_PROJECTS_LIST.length})</span>
+                    <span>Danh sách Dự Án ({projects.length})</span>
                   </div>
 
                   <div className="max-h-48 overflow-y-auto py-1">
-                    {MOCK_PROJECTS_LIST.map((proj) => {
+                    {projects.map((proj) => {
                       const isActive = proj.id === currentProject.id;
                       return (
                         <button
@@ -333,7 +321,7 @@ export const TopBar: React.FC = () => {
                   </div>
 
                   <div className="max-h-48 overflow-y-auto py-1">
-                    {(MOCK_ROOMS_LIST[currentProject.id] || [currentRoom]).map((rm) => {
+                    {(rooms[currentProject.id] || [currentRoom]).map((rm) => {
                       const isActive = rm.id === currentRoom.id;
                       return (
                         <button

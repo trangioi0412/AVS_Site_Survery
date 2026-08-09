@@ -57,8 +57,6 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
   const isSelected = selectedObjectId === object.id;
   const groupRef = useRef<any>(null);
 
-  if (!object.visible) return null;
-
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
@@ -66,6 +64,8 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
     },
     [object.id, selectObject]
   );
+
+  if (!object.visible) return null;
 
   const dim = object.dimensions || { width: 1, height: 1, depth: 1 };
   const baseColor = getObjectColor(object, isSelected);

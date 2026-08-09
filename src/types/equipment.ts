@@ -1,4 +1,4 @@
-import { ObjectCategory, ObjectStatus } from "./editor";
+import { ObjectCategory, ObjectStatus, SceneObject } from "./editor";
 
 export interface EquipmentItem {
   id: string;
@@ -36,11 +36,13 @@ export interface ProjectInfo {
   customer: string;
   location: string;
   status: "surveying" | "planning" | "approved" | "completed";
+  createdAt?: string;
   updatedAt: string;
 }
 
 export interface RoomInfo {
   id: string;
+  projectId: string;
   name: string;
   type: string;
   dimensions: {
@@ -48,4 +50,7 @@ export interface RoomInfo {
     length: number;
     height: number;
   };
+  sceneObjects?: SceneObject[];
+  createdAt?: string;
+  updatedAt?: string;
 }
