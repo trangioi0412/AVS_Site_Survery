@@ -5,6 +5,7 @@
 - **TASK-001B**: Hardening & Verification (✅ Completed & Verified)
 - **TASK-002**: App Shell, Routing & Management Pages (✅ Completed & Verified)
 - **TASK-002B**: Navigation, Editor Route & Scene Switching Integration Audit (✅ Completed & Verified)
+- **TASK-002C**: Fix Editor bị kẹt vô hạn tại màn hình Loading (✅ Completed & Verified)
 - **TASK-003**: Undo/Redo, Measurement, Annotation & Editor Tools
 - **TASK-004**: GLTF/GLB Asset Loader
 - **TASK-005**: PDF/Excel/Snapshot Reporting
@@ -64,18 +65,26 @@
    - Gỡ bỏ `useEffect` đọc `window.location.search` (`initFromUrl`) trong `EditorLayout`, triệt tiêu hoàn toàn race condition và xung đột 2 nguồn state.
 3. **Phân Tách Router & Zustand Store**:
    - Tách biệt hoàn toàn trách nhiệm giữa Next.js Router và Zustand Store.
-   - Dropdown chọn Project và Room trong `TopBar` sử dụng `router.push('/projects/${targetProjId}/rooms/${targetRoomId}/editor')` để trình duyệt đổi route chuẩn, sau đó `DedicatedEditorPage` đồng bộ vào store sau khi `isHydrated === true`.
-4. **Hydration & Fallback Safe Route Validation**:
-   - Trong `DedicatedEditorPage`, hệ thống chờ `isHydrated === true` trước khi validate `projectId` và `roomId`.
-   - Nếu `projectId` hoặc `roomId` không tồn tại hoặc sai lệch, hệ thống tự động thực hiện controlled fallback redirect về project/room hợp lệ gần nhất mà không gây crash hay lặp vô hạn.
-5. **Lưu Trữ Fallback Scene Ngược Vào Persistence**:
-   - Khi chuyển sang phòng trống chưa có `sceneObjects`, 3D scene kiến trúc mới được khởi tạo và lưu ngay ngược lại vào mảng `rooms[projectId]`, ngăn chặn việc tái sinh scene hoặc trùng lặp tường.
-6. **Audit Toolbars & Dynamic Metrics**:
-   - Tính toán diện tích sàn phòng họp động `${width * length} m² (${width}m x ${length}m)` trong `BottomToolbar`.
-   - Gắn nhãn minh bạch "(Sắp có - TASK-003)" cho nút Fit View, Đo khoảng cách, Ghi chú chưa thuộc phạm vi TASK-002B.
-7. **Automated Integration Testing**:
-   - Xây dựng test suite mới `tests/navigation-integration.test.ts` kiểm thử chuyển Project/Room, scene isolation, route fallback và store hydration (10/10 tests PASSED 100%).
-8. **Kiểm Thử & Build Production**:
+   - Dropdown chọn Project và Room trong `TopBar` sử dụng `router.push('/projects/${targetProjId}/rooms/${targetRoomId}/editor')` để trình duyệt đổi route chuẩn.
+4. **Automated Integration Testing**:
+   - Xây dựng test suite `tests/navigation-integration.test.ts` kiểm thử chuyển Project/Room, scene isolation, route fallback và store hydration.
+
+---
+
+## [COMPLETED] TASK-002C — Fix Editor bị kẹt vô hạn tại màn hình Loading
+
+### Trạng thái: ✅ ĐÃ HOÀN THÀNH
+
+### Các hạng mục đã thực hiện:
+1. **Sửa Lỗi Hydration Callback Callback**:
+   - Cập nhật `onRehydrateStorage` trong `src/stores/editor-store.ts` để xử lý đối tượng `state = undefined` (môi trường rỗng storage / phiên làm việc mới / incognito window).
+   - Tự động normalize default state và gọi `useEditorStore.setState({ ...normalized, isHydrated: true })` vô điều kiện.
+2. **Bổ Sung Client Post-Mount Hydration Safeguard**:
+   - Thêm `useEffect` kiểm tra `useEditorStore.persist?.hasHydrated?.()` trong `DedicatedEditorPage` (`src/app/projects/[projectId]/rooms/[roomId]/editor/page.tsx`).
+   - Đảm bảo `isHydrated` lập tức chuyển thành `true` khi client mount, giải phóng màn hình Loading ngay khi mở Editor.
+3. **Automated Regression Test Suite**:
+   - Xây dựng test suite `tests/hydration-loading.test.ts` kiểm thử hydration rỗng storage, hydration state lỗi và route sync.
+4. **Kiểm Thử & Build Production**:
    - `npm run lint`: Pass 100% (0 errors, 0 warnings).
-   - `npm test`: Pass 100% (10/10 Vitest tests passed).
+   - `npm test`: Pass 100% (13/13 Vitest tests passed).
    - `npm run build`: Build thành công 100% (11 static/dynamic routes generated).

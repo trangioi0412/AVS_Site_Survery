@@ -21,7 +21,20 @@ export default function DedicatedEditorPage() {
     currentRoom,
     switchProject,
     isHydrated,
+    setHydrated,
   } = useEditorStore();
+
+  // Safeguard: Ensure isHydrated is set on client mount if rehydration completed
+  useEffect(() => {
+    if (typeof window !== "undefined" && !isHydrated) {
+      if (useEditorStore.persist?.hasHydrated?.()) {
+        setHydrated(true);
+      } else {
+        // Ensure client-side mount resolves hydration
+        setHydrated(true);
+      }
+    }
+  }, [isHydrated, setHydrated]);
 
   useEffect(() => {
     if (!isHydrated || !projectId || !roomId) return;

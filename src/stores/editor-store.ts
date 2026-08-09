@@ -635,12 +635,16 @@ export const useEditorStore = create<EditorState>()(
         surveyDrafts: state.surveyDrafts,
         unit: state.unit,
       }),
-      onRehydrateStorage: () => (state) => {
-        if (state) {
-          const normalized = normalizePersistedState(state);
-          useEditorStore.setState(normalized);
-          state.setHydrated(true);
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          console.error("[Zustand Persist] Rehydration error:", error);
         }
+        const rawState = state || {};
+        const normalized = normalizePersistedState(rawState);
+        useEditorStore.setState({
+          ...normalized,
+          isHydrated: true,
+        });
       },
     }
   )
