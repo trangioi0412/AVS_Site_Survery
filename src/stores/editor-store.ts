@@ -26,6 +26,11 @@ interface EditorState {
   isDirty: boolean;
   lastSavedAt: string;
   isHydrated: boolean;
+  surveyDrafts: Record<string, Record<string, unknown>>; // key: roomId -> survey form draft data
+
+  // Settings
+  unit: "m" | "mm";
+  theme: "dark" | "light";
 
   // UI State
   selectedObjectId: string | null;
@@ -56,10 +61,20 @@ interface EditorState {
   toggleSidebar: () => void;
 
   createProject: (data: { name: string; customer?: string; location?: string }) => void;
+  addRoomToProject: (
+    projectId: string,
+    name?: string,
+    dimensions?: { width: number; length: number; height: number }
+  ) => RoomInfo;
+  deleteProject: (projectId: string) => void;
+  deleteRoom: (projectId: string, roomId: string) => void;
   switchProject: (project: ProjectInfo, targetRoomId?: string) => void;
   switchRoom: (room: RoomInfo) => void;
   updateRoomDimensions: (dims: { width: number; length: number; height: number }) => void;
   saveProject: () => void;
+  saveSurveyDraft: (roomId: string, data: Record<string, unknown>) => void;
+  setSettings: (settings: Partial<{ unit: "m" | "mm"; gridSize: number; snapEnabled: boolean; showGrid: boolean }>) => void;
+  resetLocalStorage: () => void;
   initFromUrl: (projectId?: string | null, roomId?: string | null) => void;
   undo: () => void;
   redo: () => void;
@@ -80,6 +95,76 @@ function updateUrlParams(projectId: string, roomId: string) {
   }
 }
 
+/**
+ * Validates and normalizes persisted state to prevent crashes from corrupted or missing data.
+ */
+function normalizePersistedState(state: any): Partial<EditorState> {
+  const initialProjects = getInitialProjects();
+  const initialRoomsMap = getInitialRoomsMap();
+
+  let projects = Array.isArray(state?.projects) && state.projects.length > 0
+    ? state.projects
+    : initialProjects;
+
+  let roomsMap = state?.rooms && typeof state.rooms === "object"
+    ? state.rooms
+    : initialRoomsMap;
+
+  // Validate every room in roomsMap
+  const validatedRoomsMap: Record<string, RoomInfo[]> = {};
+  for (const projId of Object.keys(roomsMap)) {
+    const roomList = Array.isArray(roomsMap[projId]) ? roomsMap[projId] : [];
+    validatedRoomsMap[projId] = roomList.map((r: any) => {
+      const safeDims = {
+        width: Math.max(2, Number(r?.dimensions?.width) || 8),
+        length: Math.max(2, Number(r?.dimensions?.length) || 10),
+        height: Math.max(2, Number(r?.dimensions?.height) || 3.2),
+      };
+      const safeScene = Array.isArray(r?.sceneObjects) && r.sceneObjects.length > 0
+        ? r.sceneObjects
+        : createArchitecturalScene(safeDims);
+
+      return {
+        ...r,
+        id: r?.id || `room-${Date.now()}`,
+        projectId: r?.projectId || projId,
+        name: r?.name || "Phòng họp",
+        type: r?.type || "meeting-room",
+        dimensions: safeDims,
+        sceneObjects: safeScene,
+      };
+    });
+  }
+
+  // Ensure every project in projects list has at least one room
+  projects.forEach((proj: ProjectInfo) => {
+    if (!validatedRoomsMap[proj.id] || validatedRoomsMap[proj.id].length === 0) {
+      validatedRoomsMap[proj.id] = [createDefaultRoom(proj.id)];
+    }
+  });
+
+  // Resolve current project & current room
+  let currentProject = projects.find((p: ProjectInfo) => p.id === state?.currentProject?.id) || projects[0];
+  let projectRooms = validatedRoomsMap[currentProject.id] || [createDefaultRoom(currentProject.id)];
+  let currentRoom = projectRooms.find((r: RoomInfo) => r.id === state?.currentRoom?.id) || projectRooms[0];
+  let objects = Array.isArray(state?.objects) && state.objects.length > 0
+    ? state.objects
+    : deepClone(currentRoom.sceneObjects || createArchitecturalScene(currentRoom.dimensions));
+
+  return {
+    projects,
+    rooms: validatedRoomsMap,
+    currentProject,
+    currentRoom,
+    objects,
+    isDirty: false,
+    lastSavedAt: state?.lastSavedAt || "10:30 AM",
+    surveyDrafts: state?.surveyDrafts || {},
+    unit: state?.unit === "mm" ? "mm" : "m",
+    theme: "dark",
+  };
+}
+
 export const useEditorStore = create<EditorState>()(
   persist(
     (set, get) => ({
@@ -92,6 +177,11 @@ export const useEditorStore = create<EditorState>()(
       isDirty: false,
       lastSavedAt: "10:30 AM",
       isHydrated: false,
+      surveyDrafts: {},
+
+      // Settings
+      unit: "m",
+      theme: "dark",
 
       // UI States
       selectedObjectId: null,
@@ -185,7 +275,6 @@ export const useEditorStore = create<EditorState>()(
 
       createProject: (data) => {
         const { saveProject, projects, rooms } = get();
-        // Save current room first
         saveProject();
 
         const { project, room } = createNewProject(data);
@@ -210,6 +299,58 @@ export const useEditorStore = create<EditorState>()(
         });
 
         updateUrlParams(project.id, room.id);
+      },
+
+      addRoomToProject: (projectId, name = "Phòng mới", dimensions = { width: 8, length: 10, height: 3.2 }) => {
+        const { rooms } = get();
+        const newRoom = createDefaultRoom(projectId, name, dimensions);
+        const projectRooms = rooms[projectId] || [];
+        const updatedRooms = [...projectRooms, newRoom];
+
+        set({
+          rooms: {
+            ...rooms,
+            [projectId]: updatedRooms,
+          },
+        });
+
+        return newRoom;
+      },
+
+      deleteProject: (projectId) => {
+        const { projects, rooms, currentProject, switchProject } = get();
+        if (projects.length <= 1) return; // Don't delete last remaining project
+
+        const updatedProjects = projects.filter((p) => p.id !== projectId);
+        const updatedRoomsMap = { ...rooms };
+        delete updatedRoomsMap[projectId];
+
+        set({
+          projects: updatedProjects,
+          rooms: updatedRoomsMap,
+        });
+
+        if (currentProject.id === projectId) {
+          switchProject(updatedProjects[0]);
+        }
+      },
+
+      deleteRoom: (projectId, roomId) => {
+        const { rooms, currentRoom, switchRoom } = get();
+        const projectRooms = rooms[projectId] || [];
+        if (projectRooms.length <= 1) return; // Don't delete last remaining room in project
+
+        const updatedRooms = projectRooms.filter((r) => r.id !== roomId);
+        const updatedRoomsMap = {
+          ...rooms,
+          [projectId]: updatedRooms,
+        };
+
+        set({ rooms: updatedRoomsMap });
+
+        if (currentRoom.id === roomId) {
+          switchRoom(updatedRooms[0]);
+        }
       },
 
       switchProject: (targetProject, targetRoomId) => {
@@ -278,12 +419,23 @@ export const useEditorStore = create<EditorState>()(
         );
 
         // 2. Fetch target room scene
-        const updatedTargetRoom =
+        const rawTargetRoom =
           updatedRoomsMap[currentProject.id]?.find((r) => r.id === targetRoom.id) || targetRoom;
+
+        const safeDims = {
+          width: Math.max(2, Number(rawTargetRoom.dimensions?.width) || 8),
+          length: Math.max(2, Number(rawTargetRoom.dimensions?.length) || 10),
+          height: Math.max(2, Number(rawTargetRoom.dimensions?.height) || 3.2),
+        };
+
+        const updatedTargetRoom: RoomInfo = {
+          ...rawTargetRoom,
+          dimensions: safeDims,
+        };
 
         let roomScene = updatedTargetRoom.sceneObjects;
         if (!roomScene || roomScene.length === 0) {
-          roomScene = createArchitecturalScene(updatedTargetRoom.dimensions);
+          roomScene = createArchitecturalScene(safeDims);
         }
 
         const activeScene = deepClone(roomScene);
@@ -304,7 +456,6 @@ export const useEditorStore = create<EditorState>()(
       updateRoomDimensions: (dims) => {
         const { currentProject, currentRoom, objects, rooms } = get();
 
-        // Dynamically update floor, 4 walls, and door in 3D scene
         const updatedObjects = updateArchitecturalObjects(objects, dims);
 
         const updatedRoom: RoomInfo = {
@@ -369,23 +520,61 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
+      saveSurveyDraft: (roomId, surveyData) => {
+        const { surveyDrafts } = get();
+        set({
+          surveyDrafts: {
+            ...surveyDrafts,
+            [roomId]: surveyData,
+          },
+        });
+      },
+
+      setSettings: (settings) => {
+        set((state) => ({
+          unit: settings.unit || state.unit,
+          gridSize: settings.gridSize !== undefined ? settings.gridSize : state.gridSize,
+          snapEnabled: settings.snapEnabled !== undefined ? settings.snapEnabled : state.snapEnabled,
+          showGrid: settings.showGrid !== undefined ? settings.showGrid : state.showGrid,
+        }));
+      },
+
+      resetLocalStorage: () => {
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem("avs-site-survey-editor-storage");
+        }
+        const initialProjects = getInitialProjects();
+        const initialRoomsMap = getInitialRoomsMap();
+        set({
+          projects: initialProjects,
+          rooms: initialRoomsMap,
+          currentProject: initialProjects[0],
+          currentRoom: initialRoomsMap[initialProjects[0].id][0],
+          objects: deepClone(initialRoomsMap[initialProjects[0].id][0].sceneObjects || []),
+          isDirty: false,
+          lastSavedAt: "Vừa xong",
+          surveyDrafts: {},
+          unit: "m",
+          theme: "dark",
+          selectedObjectId: null,
+          historyIndex: 0,
+        });
+      },
+
       initFromUrl: (urlProjectId, urlRoomId) => {
         const { projects, rooms, currentProject, currentRoom, switchProject } = get();
 
         if (!urlProjectId) {
-          // If no query parameters, ensure current URL has defaults
           updateUrlParams(currentProject.id, currentRoom.id);
           return;
         }
 
-        // Find target project
         const targetProj = projects.find((p) => p.id === urlProjectId);
         if (targetProj) {
           const targetRooms = rooms[targetProj.id] || [];
           const validRoom = targetRooms.find((r) => r.id === urlRoomId);
           switchProject(targetProj, validRoom ? validRoom.id : undefined);
         } else {
-          // Fallback to default safe project & sync URL
           updateUrlParams(currentProject.id, currentRoom.id);
         }
       },
@@ -419,6 +608,12 @@ export const useEditorStore = create<EditorState>()(
     {
       name: "avs-site-survey-editor-storage",
       version: 1,
+      migrate: (persistedState: any, version: number) => {
+        if (version === 0 || !persistedState) {
+          return normalizePersistedState({});
+        }
+        return normalizePersistedState(persistedState);
+      },
       partialize: (state) => ({
         projects: state.projects,
         rooms: state.rooms,
@@ -427,9 +622,12 @@ export const useEditorStore = create<EditorState>()(
         objects: state.objects,
         isDirty: state.isDirty,
         lastSavedAt: state.lastSavedAt,
+        surveyDrafts: state.surveyDrafts,
+        unit: state.unit,
       }),
       onRehydrateStorage: () => (state) => {
         if (state) {
+          const normalized = normalizePersistedState(state);
           state.setHydrated(true);
         }
       },

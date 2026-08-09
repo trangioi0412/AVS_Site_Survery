@@ -17,12 +17,14 @@ export function deepClone<T>(obj: T): T {
  * Length = Z axis (meters)
  * Height = Y axis (meters)
  */
-export function createArchitecturalScene(dimensions: {
+export function createArchitecturalScene(dimensions?: {
   width: number;
   length: number;
   height: number;
 }): SceneObject[] {
-  const { width: W, length: L, height: H } = dimensions;
+  const W = Math.max(2, Number(dimensions?.width) || 8);
+  const L = Math.max(2, Number(dimensions?.length) || 10);
+  const H = Math.max(2, Number(dimensions?.height) || 3.2);
 
   return [
     {

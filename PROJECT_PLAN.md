@@ -1,34 +1,34 @@
 # Kế Hoạch Dự Án — AVS Site Survey 3D Planner
 
 ## 1. Mục Tiêu Dự Án
-Xây dựng ứng dụng web 3D Editor khảo sát mặt bằng và thiết kế hạ tầng AV (Audio-Visual Site Survey & Planning) hiện đại, sử dụng **Next.js 14**, **React Three Fiber / Three.js**, **Zustand**, và **TypeScript**. Ứng dụng giúp kỹ sư AV dựng mô hình 3D phòng họp, sắp xếp thiết bị, kiểm tra tầm nhìn camera/loa, và xuất báo cáo BOM/mặt bằng 2D.
+Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ thống Audio Visual (Audio-Visual Site Survey & Planning) chuyên nghiệp trên nền tảng **Next.js 14 App Router**, **React Three Fiber / Three.js**, **Tailwind CSS**, **Zustand**, và **TypeScript**.
 
 ---
 
-## 2. Các Phase Triển Khai
+## 2. Các Phase Triển Khai (Roadmap)
 
-### Phase 1: Quản lý Dự Án, Phòng & Độc Lập Scene 3D (Đang thực hiện)
-- **TASK-001** (✅ **HOÀN THÀNH**):
-  - Thiết kế lại Data Architecture (Project -> Room -> Scene Objects).
-  - Hoàn thiện luồng Tạo Dự Án Mới và Phòng Mặc Định.
-  - Chuyển Project / Room lưu và nạp đúng Scene 3D tương ứng.
-  - Tự động hóa cập nhật Sàn và 4 Tường 3D theo kích thước phòng.
-  - Zustand Persistence (`localStorage`) giữ nguyên dữ liệu sau reload.
-  - Đọc và đồng bộ URL query (`?project=<id>&room=<id>`).
+### Phase 1: Core 3D Data Architecture
+- **TASK-001** (✅ **HOÀN THÀNH**): Project/Room/Scene isolation.
+- **TASK-001B** (✅ **HOÀN THÀNH**): Hardening dữ liệu, hydration safety, schema migration, Vitest suite & GitHub Actions CI.
 
-### Phase 2: Hệ Thống History & Editor State
-- **TASK-002** (⏳ **TIẾP THEO**):
-  - Ổn định Undo / Redo cho từng Room.
-  - Hoàn thiện history stack và state snapshot management.
+### Phase 2: App Shell & Routing
+- **TASK-002** (✅ **HOÀN THÀNH**): App Shell dùng chung, điều hướng Next.js App Router, Dashboard và 10 trang quản lý khảo sát/dự án/thiết bị/báo cáo.
 
-### Phase 3: Mô Hình 3D & Asset Loader
-- **TASK-003**:
-  - Tích hợp GLTF / GLB Model Loader cho thiết bị AV thực tế (Camera, Soundbar, Display, Table, Rack).
-  - Tùy chỉnh vật liệu và phân vùng thuộc tính thiết bị.
+### Phase 3: History & Tools
+- **TASK-003** (⏳ **TIẾP THEO**): Undo/Redo nâng cao & Editor measurement/annotation tools.
+
+### Phase 4: Asset Management
+- **TASK-004**: GLTF/GLB Asset Loader cho mô hình 3D thực tế.
+
+### Phase 5: Export & Reporting
+- **TASK-005**: Xuất báo cáo PDF, Excel BOM & Snapshots.
+
+### Phase 6: Cloud & Backend
+- **TASK-006**: Backend API, Authentication & Realtime Collaboration.
 
 ---
 
 ## 3. Trạng Thái Hiện Tại
-- **TASK-001**: ✅ **HOÀN THÀNH** (Lint pass, Production Build 100% thành công).
-- **TASK-002**: 🔄 Chuẩn bị triển khai.
-- **TASK-003**: 📅 Lên kế hoạch.
+- **TASK-001 & TASK-001B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Automated Tests pass, CI ready, Build pass 100%).
+- **TASK-002**: ✅ **HOÀN THÀNH & NGHIỆM THU** (11/11 Routes generated, Pass 100% Lint/Build/Tests).
+- **TASK-003**: 🔄 Chuẩn bị triển khai.
