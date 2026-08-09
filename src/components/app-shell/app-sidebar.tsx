@@ -20,14 +20,17 @@ import { cn } from "@/lib/utils";
 
 export const AppSidebar: React.FC = () => {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar, currentProject } = useEditorStore();
+  const { sidebarCollapsed, toggleSidebar, currentProject, currentRoom } = useEditorStore();
+
+  const projId = currentProject?.id || "project-abc-building";
+  const roomId = currentRoom?.id || "room-101";
 
   const NAV_ITEMS = [
     { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "projects", href: "/projects", label: "Dự án", icon: FolderKanban },
     {
       id: "survey",
-      href: currentProject?.id ? `/projects/${currentProject.id}/survey` : "/projects",
+      href: `/projects/${projId}/survey`,
       label: "Khảo sát",
       icon: ClipboardCheck,
     },
@@ -64,10 +67,13 @@ export const AppSidebar: React.FC = () => {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive =
-              item.href === "/dashboard"
+              item.id === "dashboard"
                 ? pathname === "/dashboard"
-                : pathname.startsWith(item.href) ||
-                  (item.id === "projects" && pathname.startsWith("/projects"));
+                : item.id === "survey"
+                ? pathname.endsWith("/survey")
+                : item.id === "projects"
+                ? pathname === "/projects" || (pathname.startsWith("/projects/") && !pathname.endsWith("/survey") && !pathname.endsWith("/editor"))
+                : pathname.startsWith(item.href);
 
             return (
               <Link
@@ -76,7 +82,7 @@ export const AppSidebar: React.FC = () => {
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all group relative",
                   isActive
-                    ? "bg-primary/15 text-primary border border-primary/30 shadow-sm"
+                    ? "bg-primary/15 text-primary border border-primary/30 shadow-sm font-semibold"
                     : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
                 )}
                 title={sidebarCollapsed ? item.label : undefined}

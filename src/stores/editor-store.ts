@@ -439,18 +439,28 @@ export const useEditorStore = create<EditorState>()(
         }
 
         const activeScene = deepClone(roomScene);
+        const finalTargetRoom: RoomInfo = { ...updatedTargetRoom, sceneObjects: activeScene };
+
+        const currentProjRooms = updatedRoomsMap[currentProject.id] || [];
+        const roomExists = currentProjRooms.some((r) => r.id === targetRoom.id);
+
+        if (roomExists) {
+          updatedRoomsMap[currentProject.id] = currentProjRooms.map((r) =>
+            r.id === targetRoom.id ? finalTargetRoom : r
+          );
+        } else {
+          updatedRoomsMap[currentProject.id] = [...currentProjRooms, finalTargetRoom];
+        }
 
         set({
           rooms: updatedRoomsMap,
-          currentRoom: { ...updatedTargetRoom, sceneObjects: activeScene },
+          currentRoom: finalTargetRoom,
           objects: activeScene,
           selectedObjectId: null,
           history: [activeScene],
           historyIndex: 0,
           isDirty: false,
         });
-
-        updateUrlParams(currentProject.id, targetRoom.id);
       },
 
       updateRoomDimensions: (dims) => {
@@ -628,6 +638,7 @@ export const useEditorStore = create<EditorState>()(
       onRehydrateStorage: () => (state) => {
         if (state) {
           const normalized = normalizePersistedState(state);
+          useEditorStore.setState(normalized);
           state.setHydrated(true);
         }
       },

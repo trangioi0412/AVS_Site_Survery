@@ -11,11 +11,12 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 - **TASK-001** (✅ **HOÀN THÀNH**): Project/Room/Scene isolation.
 - **TASK-001B** (✅ **HOÀN THÀNH**): Hardening dữ liệu, hydration safety, schema migration, Vitest suite & GitHub Actions CI.
 
-### Phase 2: App Shell & Routing
+### Phase 2: App Shell, Routing & Integration Audit
 - **TASK-002** (✅ **HOÀN THÀNH**): App Shell dùng chung, điều hướng Next.js App Router, Dashboard và 10 trang quản lý khảo sát/dự án/thiết bị/báo cáo.
+- **TASK-002B** (✅ **HOÀN THÀNH**): Navigation, Editor Route & Scene Switching Integration Audit.
 
 ### Phase 3: History & Tools
-- **TASK-003** (⏳ **TIẾP THEO**): Undo/Redo nâng cao & Editor measurement/annotation tools.
+- **TASK-003** (⏳ **TIẾP THEO**): Undo/Redo, Measurement, Annotation & Editor tools.
 
 ### Phase 4: Asset Management
 - **TASK-004**: GLTF/GLB Asset Loader cho mô hình 3D thực tế.
@@ -31,4 +32,5 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 ## 3. Trạng Thái Hiện Tại
 - **TASK-001 & TASK-001B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Automated Tests pass, CI ready, Build pass 100%).
 - **TASK-002**: ✅ **HOÀN THÀNH & NGHIỆM THU** (11/11 Routes generated, Pass 100% Lint/Build/Tests).
-- **TASK-003**: 🔄 Chuẩn bị triển khai.
+- **TASK-002B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Single Source of Truth, Clean Nav, Pass 10/10 Vitest tests & Build 100%).
+- **TASK-003**: 🔄 Sẵn sàng triển khai.

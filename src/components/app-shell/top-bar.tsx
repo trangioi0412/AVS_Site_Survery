@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   PanelLeftClose,
@@ -36,6 +37,7 @@ import { toast } from "sonner";
 import { exportSceneToJson, exportBomToCsv } from "@/lib/export-helpers";
 
 export const TopBar: React.FC = () => {
+  const router = useRouter();
   const {
     sidebarCollapsed,
     toggleSidebar,
@@ -184,7 +186,7 @@ export const TopBar: React.FC = () => {
 
   // Copy Share Link
   const handleCopyShareLink = () => {
-    const shareUrl = `${window.location.origin}/?project=${currentProject.id}&room=${currentRoom.id}`;
+    const shareUrl = `${window.location.origin}/projects/${currentProject.id}/rooms/${currentRoom.id}/editor`;
     navigator.clipboard.writeText(shareUrl);
     setCopiedLink(true);
     toast.success("Đã sao chép liên kết dự án vào bộ nhớ tạm!");
@@ -255,7 +257,9 @@ export const TopBar: React.FC = () => {
                         <button
                           key={proj.id}
                           onClick={() => {
-                            switchProject(proj);
+                            const targetRooms = rooms[proj.id] || [];
+                            const targetRoomId = targetRooms[0]?.id || currentRoom.id;
+                            router.push(`/projects/${proj.id}/rooms/${targetRoomId}/editor`);
                             setProjectDropdownOpen(false);
                             toast.info(`Đã chuyển sang dự án ${proj.name}`);
                           }}
@@ -327,7 +331,7 @@ export const TopBar: React.FC = () => {
                         <button
                           key={rm.id}
                           onClick={() => {
-                            switchRoom(rm);
+                            router.push(`/projects/${currentProject.id}/rooms/${rm.id}/editor`);
                             setRoomDropdownOpen(false);
                             toast.info(`Đã chuyển sang phòng ${rm.name}`);
                           }}

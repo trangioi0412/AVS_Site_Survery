@@ -39,6 +39,7 @@ export const BottomToolbar: React.FC = () => {
     redo,
     historyIndex,
     history,
+    currentRoom,
   } = useEditorStore();
 
   const handleToolClick = (mode: EditorMode, name: string) => {
@@ -131,8 +132,11 @@ export const BottomToolbar: React.FC = () => {
           </button>
 
           <button
-            onClick={() => toast.info("Đo diện tích phòng: 96.0 m² (8.0m x 12.0m)")}
-            title="Đo diện tích"
+            onClick={() => {
+              const area = currentRoom.dimensions.width * currentRoom.dimensions.length;
+              toast.info(`Diện tích phòng ${currentRoom.name}: ${area} m² (${currentRoom.dimensions.width}m x ${currentRoom.dimensions.length}m)`);
+            }}
+            title="Đo diện tích phòng hiện tại"
             className="p-1.5 rounded-md bg-surface-2 border border-border/60 text-text-secondary hover:text-text-primary hover:bg-surface-3 flex items-center gap-1 transition-colors"
           >
             <Maximize2 className="w-3.5 h-3.5" />
@@ -241,12 +245,12 @@ export const BottomToolbar: React.FC = () => {
         {/* Fit View Button */}
         <button
           onClick={() => {
-            toast.info("Đã căn góc nhìn Fit View toàn bộ phòng họp");
+            toast.info("Căn góc nhìn Fit View toàn bộ phòng họp (Sắp có - TASK-003)");
           }}
-          title="Fit View (Toàn cảnh phòng)"
-          className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-2 hover:bg-surface-3 border border-border/60 text-text-primary text-[11px] font-medium transition-colors"
+          title="Fit View toàn bộ phòng (Sắp có - TASK-003)"
+          className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-surface-2 hover:bg-surface-3 border border-border/60 text-text-secondary text-[11px] font-medium transition-colors"
         >
-          <Focus className="w-3.5 h-3.5 text-primary" />
+          <Focus className="w-3.5 h-3.5 text-text-secondary" />
           <span className="hidden sm:inline">Fit View</span>
         </button>
       </div>

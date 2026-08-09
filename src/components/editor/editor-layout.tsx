@@ -19,16 +19,7 @@ export const EditorLayout: React.FC = () => {
   const [leftTab, setLeftTab] = useState<"library" | "layers">("library");
   const [bottomTab, setBottomTab] = useState<"infra" | "preview" | "output">("infra");
 
-  const { initFromUrl, currentProject, currentRoom } = useEditorStore();
-
-  // URL Query Parameters initialization
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const projParam = params.get("project");
-    const roomParam = params.get("room");
-    initFromUrl(projParam, roomParam);
-  }, [initFromUrl]);
+  const { currentProject, currentRoom } = useEditorStore();
 
   return (
     <div className="flex flex-col w-screen h-screen bg-background overflow-hidden text-text-primary">
