@@ -28,7 +28,7 @@ export const MainSidebar: React.FC = () => {
   const NAV_ITEMS = [
     { id: "projects", label: "Dự án", href: "/projects", icon: FolderKanban },
     { id: "survey", label: "Khảo sát", href: `/projects/${projId}/survey`, icon: ClipboardCheck },
-    { id: "rooms", label: "Phòng", href: `/projects/${projId}/rooms/${roomId}`, icon: DoorClosed },
+    { id: "rooms", label: "Phòng", href: `/projects/${projId}/rooms`, icon: DoorClosed },
     { id: "editor", label: "3D Editor", href: `/projects/${projId}/rooms/${roomId}/editor`, icon: Box },
     { id: "equipment", label: "Thiết bị", href: "/equipment", icon: Cpu },
     { id: "library", label: "Thư viện", href: "/library", icon: Library },
@@ -51,7 +51,7 @@ export const MainSidebar: React.FC = () => {
             item.id === "editor"
               ? pathname.endsWith("/editor")
               : item.id === "rooms"
-              ? pathname.includes("/rooms/") && !pathname.endsWith("/editor")
+              ? pathname.includes("/rooms") && !pathname.endsWith("/editor")
               : item.id === "survey"
               ? pathname.endsWith("/survey")
               : item.id === "projects"

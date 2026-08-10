@@ -20,8 +20,7 @@ export default function ReportsPage() {
 
   // Export Handlers with sanitized dynamic filenames
   const handleExportJson = () => {
-    const filename = `${currentProject.name}_${currentRoom.name}`;
-    exportSceneToJson(objects, filename);
+    exportSceneToJson(objects, currentProject, currentRoom);
     toast.success(`Đã xuất file 3D JSON cho "${currentProject.name} - ${currentRoom.name}"!`);
   };
 

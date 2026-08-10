@@ -30,22 +30,24 @@ export const RoomScene: React.FC = () => {
 
   return (
     <>
-      {/* Ambient + Directional Lights */}
-      <ambientLight intensity={0.6} color="#b0c4de" />
+      {/* Balanced Lighting System */}
+      <ambientLight intensity={0.5} color="#e2e8f0" />
+      <hemisphereLight args={["#f8fafc", "#1e293b", 0.6]} />
       <directionalLight
-        position={[8, 14, 8]}
-        intensity={1.4}
+        position={[10, 16, 10]}
+        intensity={1.5}
         castShadow
         shadow-mapSize={[1024, 1024]}
         shadow-camera-near={0.5}
         shadow-camera-far={60}
-        shadow-camera-left={-10}
-        shadow-camera-right={10}
-        shadow-camera-top={10}
-        shadow-camera-bottom={-10}
+        shadow-camera-left={-12}
+        shadow-camera-right={12}
+        shadow-camera-top={12}
+        shadow-camera-bottom={-12}
+        shadow-bias={-0.0001}
       />
-      <directionalLight position={[-8, 8, -8]} intensity={0.35} color="#4080ff" />
-      <pointLight position={[0, 3, 0]} intensity={0.4} color="#ffffff" decay={2} />
+      <directionalLight position={[-10, 10, -10]} intensity={0.45} color="#60a5fa" />
+      <pointLight position={[0, 4, 0]} intensity={0.5} color="#ffffff" decay={2} />
 
       {/* Camera: Perspective for 3D, Orthographic top-down for 2D */}
       {viewMode === "3d" ? (
@@ -85,15 +87,15 @@ export const RoomScene: React.FC = () => {
       {/* Ground reference grid */}
       {showGrid && (
         <Grid
-          position={[0, -0.02, 0]}
-          args={[24, 24]}
+          position={[0, -0.01, 0]}
+          args={[30, 30]}
           cellSize={gridSize}
-          cellThickness={0.6}
-          cellColor="#1e3050"
+          cellThickness={0.9}
+          cellColor="#0284c7"
           sectionSize={gridSize * 4}
-          sectionThickness={1.2}
-          sectionColor="#2a4a7f"
-          fadeDistance={28}
+          sectionThickness={1.8}
+          sectionColor="#38bdf8"
+          fadeDistance={36}
           fadeStrength={1.2}
           infiniteGrid
         />
@@ -106,8 +108,8 @@ export const RoomScene: React.FC = () => {
         onPointerDown={handleMissedClick}
         receiveShadow
       >
-        <planeGeometry args={[60, 60]} />
-        <meshStandardMaterial color="#080d16" roughness={1} metalness={0} />
+        <planeGeometry args={[80, 80]} />
+        <meshStandardMaterial color="#0b1320" roughness={1} metalness={0} />
       </mesh>
 
       {/* All scene objects */}

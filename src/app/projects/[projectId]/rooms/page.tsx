@@ -6,12 +6,6 @@ import { useParams, useRouter } from "next/navigation";
 import { AppLayout } from "@/components/app-shell/app-layout";
 import { useEditorStore } from "@/stores/editor-store";
 import { PortalModal } from "@/components/ui/portal-modal";
-import { ProjectStatus } from "@/types/equipment";
-import {
-  PROJECT_STATUS_LABELS,
-  getProjectStatusClass,
-  getProjectStatusLabel,
-} from "@/lib/project-utils";
 import {
   Building2,
   MapPin,
@@ -22,11 +16,13 @@ import {
   ClipboardCheck,
   ArrowLeft,
   Trash2,
-  Tag,
+  Sliders,
+  FileCode,
+  Layers,
 } from "lucide-react";
 import { toast } from "sonner";
 
-export default function ProjectDetailPage() {
+export default function RoomsManagementPage() {
   const params = useParams();
   const router = useRouter();
   const projectId = params?.projectId as string;
@@ -38,7 +34,6 @@ export default function ProjectDetailPage() {
     switchRoom,
     addRoomToProject,
     deleteRoom,
-    updateProjectStatus,
   } = useEditorStore();
 
   const [showAddRoomModal, setShowAddRoomModal] = useState(false);
@@ -49,7 +44,7 @@ export default function ProjectDetailPage() {
   const [roomLength, setRoomLength] = useState(10);
   const [roomHeight, setRoomHeight] = useState(3.2);
 
-  // Find target project
+  // Find target project & rooms list for this project
   const project = projects.find((p) => p.id === projectId);
   const projectRooms = rooms[projectId] || [];
 
@@ -77,7 +72,7 @@ export default function ProjectDetailPage() {
   const handleAddRoomSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newRoomName.trim()) {
-      toast.error("Vui lòng nhập tên phòng!");
+      toast.error("Vui lòng nhập tên phòng họp!");
       return;
     }
 
@@ -89,13 +84,13 @@ export default function ProjectDetailPage() {
 
     setShowAddRoomModal(false);
     setNewRoomName("");
-    toast.success(`Đã thêm phòng "${createdRoom.name}" vào dự án!`);
+    toast.success(`Đã tạo phòng mới "${createdRoom.name}" thuộc dự án ${project.name}!`);
   };
 
   const handleDeleteRoomConfirm = () => {
     if (!roomToDelete) return;
     if (projectRooms.length <= 1) {
-      toast.error("Dự án phải chứa ít nhất 1 phòng họp!");
+      toast.error("Dự án phải chứa ít nhất 1 phòng khảo sát!");
       setRoomToDelete(null);
       return;
     }
@@ -106,161 +101,137 @@ export default function ProjectDetailPage() {
     setRoomToDelete(null);
   };
 
-  const handleStatusChange = (newStatus: ProjectStatus) => {
-    updateProjectStatus(projectId, newStatus);
-    toast.success(`Đã cập nhật trạng thái dự án thành "${getProjectStatusLabel(newStatus)}"!`);
-  };
-
   return (
     <AppLayout>
       <div className="space-y-6">
-        {/* Back Link & Header */}
+        {/* Navigation back to project & Header */}
         <div className="space-y-2">
           <Link
-            href="/projects"
+            href={`/projects/${project.id}`}
+            onClick={() => switchProject(project)}
             className="inline-flex items-center gap-1 text-xs text-text-secondary hover:text-text-primary transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Danh sách dự án</span>
+            <span>Quay lại chi tiết dự án {project.name}</span>
           </Link>
 
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-surface-1 p-5 rounded-xl border border-border">
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <h1 className="text-xl font-bold text-text-primary">{project.name}</h1>
-
-                {/* Status Selector Dropdown Badge */}
-                <div className="relative shrink-0">
-                  <select
-                    value={project.status || "survey"}
-                    onChange={(e) => handleStatusChange(e.target.value as ProjectStatus)}
-                    className={`text-[11px] px-2.5 py-1 rounded font-semibold uppercase cursor-pointer border focus:outline-none transition-colors appearance-none pr-6 ${getProjectStatusClass(
-                      project.status
-                    )}`}
-                    title="Bấm để chuyển trạng thái dự án"
-                  >
-                    {Object.entries(PROJECT_STATUS_LABELS).map(([stVal, stLbl]) => (
-                      <option key={stVal} value={stVal} className="bg-surface-1 text-text-primary normal-case">
-                        {stLbl}
-                      </option>
-                    ))}
-                  </select>
-                  <Tag className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-4 text-xs text-text-secondary">
-                <span>Khách hàng: <strong className="text-text-primary">{project.customer}</strong></span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-text-secondary" />
-                  {project.location}
-                </span>
-                <span>•</span>
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-text-secondary" />
-                  {project.updatedAt}
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <DoorClosed className="w-5 h-5 text-primary shrink-0" />
+                <h1 className="text-xl font-bold text-text-primary">
+                  Danh Sách Phòng Khảo Sát
+                </h1>
+                <span className="text-xs bg-primary/15 text-primary border border-primary/30 px-2 py-0.5 rounded font-mono font-semibold">
+                  {projectRooms.length} phòng
                 </span>
               </div>
+              <p className="text-xs text-text-secondary">
+                Dự án: <strong className="text-text-primary">{project.name}</strong> • Khách hàng: {project.customer} • {project.location}
+              </p>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Link
-                href={`/projects/${project.id}/survey`}
-                onClick={() => switchProject(project)}
-                className="px-3.5 py-2 bg-surface-2 hover:bg-surface-3 border border-border text-text-primary rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors"
-              >
-                <ClipboardCheck className="w-4 h-4 text-primary" />
-                <span>Quy trình khảo sát</span>
-              </Link>
-
+            <div className="flex items-center gap-2 shrink-0 text-xs">
               <button
                 onClick={() => setShowAddRoomModal(true)}
-                className="px-3.5 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-semibold flex items-center gap-1.5 shadow-md shadow-primary/20 transition-all"
               >
                 <Plus className="w-4 h-4" />
-                <span>Thêm phòng mới</span>
+                <span>Tạo Phòng Mới</span>
               </button>
             </div>
           </div>
         </div>
 
-        {/* Rooms Section */}
-        <div className="bg-surface-1 border border-border rounded-xl p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-border/80 pb-3">
-            <div className="flex items-center gap-2">
-              <DoorClosed className="w-4 h-4 text-primary" />
-              <h2 className="text-sm font-bold text-text-primary">
-                Danh Sách Phòng Khảo Sát ({projectRooms.length})
-              </h2>
-            </div>
-
-            <Link
-              href={`/projects/${project.id}/rooms`}
-              className="text-xs text-primary hover:underline font-medium"
+        {/* Room Cards Grid */}
+        {projectRooms.length === 0 ? (
+          <div className="p-12 text-center bg-surface-1 border border-dashed border-border rounded-xl space-y-4">
+            <DoorClosed className="w-12 h-12 text-text-secondary/40 mx-auto" />
+            <h3 className="text-sm font-semibold text-text-primary">Chưa có phòng nào trong dự án này</h3>
+            <p className="text-xs text-text-secondary max-w-sm mx-auto">
+              Tạo phòng họp hoặc không gian mới để bắt đầu thiết kế bản vẽ 3D và khảo sát thiết bị.
+            </p>
+            <button
+              onClick={() => setShowAddRoomModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-xs font-semibold rounded-md shadow-sm"
             >
-              Quản lý danh sách phòng &rarr;
-            </Link>
+              <Plus className="w-4 h-4" />
+              <span>Tạo phòng đầu tiên</span>
+            </button>
           </div>
-
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {projectRooms.map((rm) => {
               const area = rm.dimensions.width * rm.dimensions.length;
+              const objectCount = rm.sceneObjects ? rm.sceneObjects.filter(o => o.category !== "architecture").length : 0;
+
               return (
                 <div
                   key={rm.id}
-                  className="bg-surface-2/50 border border-border hover:border-primary/40 rounded-lg p-4 space-y-3 transition-all flex flex-col justify-between"
+                  className="bg-surface-1 border border-border hover:border-primary/40 rounded-xl p-5 space-y-4 transition-all flex flex-col justify-between"
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <Link
-                        href={`/projects/${project.id}/rooms/${rm.id}`}
-                        onClick={() => {
-                          switchProject(project, rm.id);
-                          switchRoom(rm);
-                        }}
-                        className="font-bold text-xs text-text-primary hover:text-primary transition-colors line-clamp-1"
-                      >
-                        {rm.name}
-                      </Link>
-                      <span className="text-[10px] font-mono bg-surface-3 px-1.5 py-0.5 rounded text-text-secondary border border-border/40 shrink-0">
-                        {rm.type}
+                      <div className="space-y-0.5">
+                        <Link
+                          href={`/projects/${project.id}/rooms/${rm.id}`}
+                          onClick={() => {
+                            switchProject(project, rm.id);
+                            switchRoom(rm);
+                          }}
+                          className="font-bold text-sm text-text-primary hover:text-primary transition-colors line-clamp-1 block"
+                        >
+                          {rm.name}
+                        </Link>
+                        <span className="text-[10px] font-mono bg-surface-3 px-1.5 py-0.5 rounded text-text-secondary border border-border/40 inline-block">
+                          {rm.type}
+                        </span>
+                      </div>
+
+                      <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded font-mono font-medium">
+                        {objectCount} thiết bị
                       </span>
                     </div>
 
+                    {/* Room dimensions grid */}
                     <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary">
-                      <div className="bg-surface-1 p-2 rounded border border-border/40 font-mono">
-                        <span className="text-[10px] text-text-secondary block font-sans">Kích thước (WxLxH)</span>
+                      <div className="bg-surface-2 p-2.5 rounded-lg border border-border/40 font-mono space-y-0.5">
+                        <span className="text-[10px] text-text-secondary block font-sans font-medium">
+                          Kích thước (RxDxC)
+                        </span>
                         <span className="text-text-primary font-bold">
                           {rm.dimensions.width}m x {rm.dimensions.length}m x {rm.dimensions.height}m
                         </span>
                       </div>
 
-                      <div className="bg-surface-1 p-2 rounded border border-border/40 font-mono">
-                        <span className="text-[10px] text-text-secondary block font-sans">Diện tích sàn</span>
+                      <div className="bg-surface-2 p-2.5 rounded-lg border border-border/40 font-mono space-y-0.5">
+                        <span className="text-[10px] text-text-secondary block font-sans font-medium">
+                          Diện tích sàn
+                        </span>
                         <span className="text-primary font-bold">{area} m²</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-2 border-t border-border/60 flex items-center justify-between gap-2">
+                  {/* Actions */}
+                  <div className="pt-3 border-t border-border/60 flex items-center justify-between gap-2">
                     <button
                       onClick={() => setRoomToDelete(rm.id)}
                       className="p-1.5 text-text-secondary hover:text-danger hover:bg-danger/10 rounded transition-colors"
                       title="Xóa phòng"
                       aria-label="Delete room"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash2 className="w-4 h-4" />
                     </button>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <Link
                         href={`/projects/${project.id}/rooms/${rm.id}`}
                         onClick={() => {
                           switchProject(project, rm.id);
                           switchRoom(rm);
                         }}
-                        className="px-2.5 py-1.5 bg-surface-3 hover:bg-border text-text-primary text-xs rounded font-medium transition-colors"
+                        className="px-3 py-1.5 bg-surface-2 hover:bg-surface-3 border border-border text-text-primary text-xs rounded font-medium transition-colors"
                       >
                         Chi tiết
                       </Link>
@@ -271,7 +242,7 @@ export default function ProjectDetailPage() {
                           switchProject(project, rm.id);
                           switchRoom(rm);
                         }}
-                        className="px-2.5 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs rounded font-semibold flex items-center gap-1 transition-colors"
+                        className="px-3.5 py-1.5 bg-primary hover:bg-primary-hover text-white text-xs rounded font-semibold flex items-center gap-1 shadow-sm transition-colors"
                       >
                         <Box className="w-3.5 h-3.5" />
                         <span>3D Editor</span>
@@ -282,7 +253,7 @@ export default function ProjectDetailPage() {
               );
             })}
           </div>
-        </div>
+        )}
       </div>
 
       {/* Modal Add Room */}
@@ -294,11 +265,11 @@ export default function ProjectDetailPage() {
       >
         <form onSubmit={handleAddRoomSubmit} className="space-y-3 text-xs">
           <div className="space-y-1">
-            <label className="text-text-secondary font-medium">Tên phòng *</label>
+            <label className="text-text-secondary font-medium">Tên phòng họp *</label>
             <input
               type="text"
               required
-              placeholder="Ví dụ: Phòng Họp VIP 402"
+              placeholder="Ví dụ: Phòng Họp VIP 502"
               value={newRoomName}
               onChange={(e) => setNewRoomName(e.target.value)}
               className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
@@ -361,7 +332,7 @@ export default function ProjectDetailPage() {
         </form>
       </PortalModal>
 
-      {/* Confirm Delete Room Modal */}
+      {/* Modal Confirm Delete Room */}
       <PortalModal
         isOpen={Boolean(roomToDelete)}
         onClose={() => setRoomToDelete(null)}
@@ -371,7 +342,7 @@ export default function ProjectDetailPage() {
       >
         <div className="space-y-4">
           <p className="text-xs text-text-secondary leading-relaxed">
-            Bạn có chắc chắn muốn xóa phòng này khỏi dự án? Sơ đồ 3D đi kèm phòng này sẽ bị xóa.
+            Bạn có chắc chắn muốn xóa phòng này khỏi dự án <strong className="text-text-primary">{project.name}</strong>? Toàn bộ sơ đồ và vị trí thiết bị 3D đi kèm sẽ bị xóa.
           </p>
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
             <button

@@ -14,7 +14,7 @@ import { useEditorStore } from "@/stores/editor-store";
 import { generateBOMReport, exportSceneToJson } from "@/lib/export-helpers";
 
 export const OutputPanel: React.FC = () => {
-  const { objects } = useEditorStore();
+  const { objects, currentProject, currentRoom } = useEditorStore();
 
   const handleExportBOM = () => {
     const bom = generateBOMReport(objects);
@@ -85,7 +85,7 @@ export const OutputPanel: React.FC = () => {
 
         {/* 3D GLB export */}
         <button
-          onClick={() => exportSceneToJson(objects, "Meeting-Room-501")}
+          onClick={() => exportSceneToJson(objects, currentProject, currentRoom)}
           className="flex flex-col items-start p-2 rounded bg-surface-2/70 hover:bg-surface-2 border border-border/60 hover:border-warning/50 text-left transition-all group col-span-2 lg:col-span-2"
         >
           <div className="flex items-center gap-1.5 text-warning mb-1">

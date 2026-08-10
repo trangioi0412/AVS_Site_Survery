@@ -39,7 +39,7 @@ export default function DashboardPage() {
   // Calculate Metrics from Store State
   const totalProjects = projects.length;
   const totalRooms = Object.values(rooms).reduce((acc, list) => acc + list.length, 0);
-  const surveyingProjects = projects.filter((p) => p.status === "surveying").length;
+  const surveyingProjects = projects.filter((p) => p.status === "survey").length;
   const approvedProjects = projects.filter((p) => p.status === "approved" || p.status === "completed").length;
 
   const handleCreateProjectSubmit = (e: React.FormEvent) => {

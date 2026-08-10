@@ -69,22 +69,38 @@
 4. **Automated Integration Testing**:
    - Xây dựng test suite `tests/navigation-integration.test.ts` kiểm thử chuyển Project/Room, scene isolation, route fallback và store hydration.
 
+
 ---
 
-## [COMPLETED] TASK-002C — Fix Editor bị kẹt vô hạn tại màn hình Loading
+## [COMPLETED] TASK-002D — Hoàn thiện Project/Room Workflow và Editor UI Integration
 
 ### Trạng thái: ✅ ĐÃ HOÀN THÀNH
 
 ### Các hạng mục đã thực hiện:
-1. **Sửa Lỗi Hydration Callback Callback**:
-   - Cập nhật `onRehydrateStorage` trong `src/stores/editor-store.ts` để xử lý đối tượng `state = undefined` (môi trường rỗng storage / phiên làm việc mới / incognito window).
-   - Tự động normalize default state và gọi `useEditorStore.setState({ ...normalized, isHydrated: true })` vô điều kiện.
-2. **Bổ Sung Client Post-Mount Hydration Safeguard**:
-   - Thêm `useEffect` kiểm tra `useEditorStore.persist?.hasHydrated?.()` trong `DedicatedEditorPage` (`src/app/projects/[projectId]/rooms/[roomId]/editor/page.tsx`).
-   - Đảm bảo `isHydrated` lập tức chuyển thành `true` khi client mount, giải phóng màn hình Loading ngay khi mở Editor.
-3. **Automated Regression Test Suite**:
-   - Xây dựng test suite `tests/hydration-loading.test.ts` kiểm thử hydration rỗng storage, hydration state lỗi và route sync.
-4. **Kiểm Thử & Build Production**:
-   - `npm run lint`: Pass 100% (0 errors, 0 warnings).
-   - `npm test`: Pass 100% (13/13 Vitest tests passed).
-   - `npm run build`: Build thành công 100% (11 static/dynamic routes generated).
+1. **Sửa Điều Hướng Sidebar "Phòng"**:
+   - Khởi tạo trang quản lý danh sách phòng họp theo dự án `/projects/[projectId]/rooms/page.tsx`.
+   - Cập nhật link "Phòng" trên `MainSidebar` trỏ tới `/projects/${projId}/rooms`, giữ trạng thái active mượt mà khi người dùng làm việc trong dự án.
+2. **Chuẩn Hóa & Edit Project Status Workflow**:
+   - Định nghĩa union type `ProjectStatus`: `"survey" | "drafting" | "pending_approval" | "approved" | "completed"`.
+   - Bổ sung action `updateProjectStatus(projectId, status)` trong `editor-store.ts` và tự động normalize giá trị legacy (`"surveying"`, `"planning"`).
+   - Thêm dropdown selector chọn trạng thái dự án thực sự tương tác tại thẻ danh sách dự án (`/projects`), trang chi tiết (`/projects/[projectId]`) và `TopBar`.
+3. **Làm Rõ Chức Năng Export Scene JSON Payload**:
+   - Chuẩn hóa payload `SceneExportPayload` gồm thông tin dự án, thông tin phòng họp (kèm chiều rộng, chiều dài, chiều cao), mảng `sceneObjects` sạch và ISO timestamp.
+   - Chuẩn hóa tên file xuất theo định dạng `<project-name>_<room-name>_scene_<date>.json` với hàm `sanitizeFilename`.
+   - Cập nhật nhãn UI "Xuất dữ liệu Scene (.json)" và chú thích rõ ràng đây không phải file mô hình 3D GLB/GLTF.
+4. **Cải Thiện Khả Năng Quan Sát 3D Scene Visual Contrast & Grid**:
+   - Đổi tone màu nền Canvas thành Slate tối `#0b1320`.
+   - Cân bằng hệ thống chiếu sáng với `hemisphereLight`, `ambientLight`, `directionalLight` chính 1.5 castShadow bias `-0.0001` và `directionalLight` phụ `#60a5fa`.
+   - Grid cyan `#0284c7` kết hợp section lines `#38bdf8`, độ dày nét chuẩn và bề mặt sàn `#334155` tương phản nổi bật tường `#cbd5e1` (opacity 0.8).
+   - Phân loại màu sắc thiết bị chuẩn theo nhóm (Display cyan `#0284c7`, Camera emerald `#10b981`, Audio purple `#a855f7`, Mic amber `#f59e0b`, Rack blue `#3b82f6`, Infra orange `#f97316`).
+   - Wireframe selection highlight xanh cyan `#38bdf8` và hover emission effect `#2563eb`.
+5. **Modal Viewport Overlay Độc Lập bằng PortalModal**:
+   - Xây dựng component `PortalModal` sử dụng `React.createPortal(..., document.body)` thoát khỏi stacking context của TopBar/AppShell.
+   - Hỗ trợ full viewport fixed backdrop `z-[9999]`, scroll locking `document.body.style.overflow = "hidden"`, gõ phím `Escape` đóng modal và `e.stopPropagation()`.
+   - Áp dụng `PortalModal` đồng bộ cho toàn bộ modal trong `TopBar`, `EquipmentPage`, `ProjectsPage`, `ProjectDetailPage` và `RoomsPage`.
+6. **Automated Testing & Build Verification**:
+   - Tạo test suite `tests/task-002d-workflow-ui.test.ts` (5 tests).
+   - `npm test`: Pass 100% (18/18 Vitest tests passed).
+   - `npx tsc --noEmit`: Pass 100% (0 errors).
+   - `npm run lint`: Pass 100% (0 warnings, 0 errors).
+   - `npm run build`: Build thành công 100% (13 static/dynamic routes generated).

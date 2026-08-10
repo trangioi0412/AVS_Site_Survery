@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { EditorMode, SceneObject, ViewMode } from "@/types/editor";
-import { ProjectInfo, RoomInfo } from "@/types/equipment";
+import { ProjectInfo, ProjectStatus, RoomInfo } from "@/types/equipment";
 import {
   getInitialProjects,
   getInitialRoomsMap,
@@ -70,6 +70,7 @@ interface EditorState {
   deleteRoom: (projectId: string, roomId: string) => void;
   switchProject: (project: ProjectInfo, targetRoomId?: string) => void;
   switchRoom: (room: RoomInfo) => void;
+  updateProjectStatus: (projectId: string, status: ProjectStatus) => void;
   updateRoomDimensions: (dims: { width: number; length: number; height: number }) => void;
   saveProject: () => void;
   saveSurveyDraft: (roomId: string, data: Record<string, unknown>) => void;
@@ -105,6 +106,21 @@ function normalizePersistedState(state: any): Partial<EditorState> {
   let projects = Array.isArray(state?.projects) && state.projects.length > 0
     ? state.projects
     : initialProjects;
+
+  // Normalize project statuses
+  const normalizeStatus = (st?: string): ProjectStatus => {
+    if (st === "surveying" || st === "survey") return "survey";
+    if (st === "planning" || st === "drafting") return "drafting";
+    if (st === "pending_approval") return "pending_approval";
+    if (st === "approved") return "approved";
+    if (st === "completed") return "completed";
+    return "survey";
+  };
+
+  projects = projects.map((p: any) => ({
+    ...p,
+    status: normalizeStatus(p?.status),
+  }));
 
   let roomsMap = state?.rooms && typeof state.rooms === "object"
     ? state.rooms
@@ -460,6 +476,19 @@ export const useEditorStore = create<EditorState>()(
           history: [activeScene],
           historyIndex: 0,
           isDirty: false,
+        });
+      },
+
+      updateProjectStatus: (projectId, status) => {
+        const { projects, currentProject } = get();
+        const updatedProjects = projects.map((p) =>
+          p.id === projectId ? { ...p, status } : p
+        );
+
+        const isCurrent = currentProject.id === projectId;
+        set({
+          projects: updatedProjects,
+          currentProject: isCurrent ? { ...currentProject, status } : currentProject,
         });
       },
 

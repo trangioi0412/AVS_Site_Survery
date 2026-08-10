@@ -4,6 +4,13 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { AppLayout } from "@/components/app-shell/app-layout";
 import { useEditorStore } from "@/stores/editor-store";
+import { PortalModal } from "@/components/ui/portal-modal";
+import { ProjectStatus } from "@/types/equipment";
+import {
+  PROJECT_STATUS_LABELS,
+  getProjectStatusClass,
+  getProjectStatusLabel,
+} from "@/lib/project-utils";
 import {
   FolderKanban,
   Search,
@@ -14,7 +21,7 @@ import {
   DoorClosed,
   Box,
   Trash2,
-  X,
+  Tag,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +33,7 @@ export default function ProjectsPage() {
     createProject,
     switchProject,
     deleteProject,
+    updateProjectStatus,
   } = useEditorStore();
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -82,6 +90,12 @@ export default function ProjectsPage() {
     setProjectToDelete(null);
   };
 
+  const handleStatusChange = (projectId: string, newStatus: ProjectStatus) => {
+    updateProjectStatus(projectId, newStatus);
+    const label = getProjectStatusLabel(newStatus);
+    toast.success(`Đã cập nhật trạng thái dự án thành "${label}"!`);
+  };
+
   return (
     <AppLayout>
       <div className="space-y-6">
@@ -127,10 +141,11 @@ export default function ProjectsPage() {
               className="bg-surface-2 border border-border rounded-md px-3 py-1.5 text-text-primary focus:border-primary focus:outline-none"
             >
               <option value="all">Tất cả ({projects.length})</option>
-              <option value="surveying">Đang khảo sát</option>
-              <option value="planning">Lập bản vẽ</option>
-              <option value="approved">Đã phê duyệt</option>
-              <option value="completed">Hoàn thành</option>
+              {Object.entries(PROJECT_STATUS_LABELS).map(([val, lbl]) => (
+                <option key={val} value={val}>
+                  {lbl}
+                </option>
+              ))}
             </select>
           </div>
         </div>
@@ -158,10 +173,10 @@ export default function ProjectsPage() {
                     isCurrent ? "border-primary shadow-md shadow-primary/10" : "border-border hover:border-primary/40"
                   }`}
                 >
-                  <div className="space-y-2">
-                    {/* Header line */}
+                  <div className="space-y-3">
+                    {/* Header line & Status dropdown badge */}
                     <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-0.5 min-w-0">
+                      <div className="space-y-0.5 min-w-0 flex-1">
                         <Link
                           href={`/projects/${proj.id}`}
                           onClick={() => switchProject(proj)}
@@ -172,40 +187,46 @@ export default function ProjectsPage() {
                         <span className="text-xs text-text-secondary block truncate">{proj.customer}</span>
                       </div>
 
-                      {/* Status Badge */}
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded font-semibold uppercase shrink-0 border ${
-                          proj.status === "surveying"
-                            ? "bg-primary/15 text-primary border-primary/30"
-                            : proj.status === "approved" || proj.status === "completed"
-                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                            : "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                        }`}
-                      >
-                        {proj.status === "surveying"
-                          ? "Khảo sát"
-                          : proj.status === "approved"
-                          ? "Đã duyệt"
-                          : proj.status === "completed"
-                          ? "Hoàn thành"
-                          : "Lập bản vẽ"}
-                      </span>
+                      {/* Status Selector Badge */}
+                      <div className="relative shrink-0">
+                        <select
+                          value={proj.status || "survey"}
+                          onChange={(e) => handleStatusChange(proj.id, e.target.value as ProjectStatus)}
+                          className={`text-[10px] px-2 py-1 rounded font-semibold uppercase cursor-pointer border focus:outline-none transition-colors appearance-none pr-5 ${getProjectStatusClass(
+                            proj.status
+                          )}`}
+                          title="Thay đổi trạng thái dự án"
+                        >
+                          {Object.entries(PROJECT_STATUS_LABELS).map(([stVal, stLbl]) => (
+                            <option key={stVal} value={stVal} className="bg-surface-1 text-text-primary normal-case">
+                              {stLbl}
+                            </option>
+                          ))}
+                        </select>
+                        <Tag className="w-2.5 h-2.5 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                      </div>
                     </div>
 
                     {/* Metadata info */}
-                    <div className="space-y-1 pt-1 text-xs text-text-secondary">
+                    <div className="space-y-1.5 pt-1 text-xs text-text-secondary">
                       <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-text-secondary" />
+                        <MapPin className="w-3.5 h-3.5 text-text-secondary shrink-0" />
                         <span className="truncate">{proj.location}</span>
                       </div>
 
                       <div className="flex items-center gap-1.5">
-                        <DoorClosed className="w-3.5 h-3.5 text-status-existing" />
-                        <span>{projectRooms.length} phòng khảo sát</span>
+                        <DoorClosed className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <Link
+                          href={`/projects/${proj.id}/rooms`}
+                          onClick={() => switchProject(proj)}
+                          className="hover:text-primary transition-colors underline decoration-dotted"
+                        >
+                          {projectRooms.length} phòng khảo sát
+                        </Link>
                       </div>
 
                       <div className="flex items-center gap-1.5 text-[11px]">
-                        <Clock className="w-3 h-3 text-text-secondary" />
+                        <Clock className="w-3 h-3 text-text-secondary shrink-0" />
                         <span>Cập nhật: {proj.updatedAt}</span>
                       </div>
                     </div>
@@ -249,104 +270,95 @@ export default function ProjectsPage() {
       </div>
 
       {/* Modal Tạo Dự Án Mới */}
-      {showNewProjectModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-1 border border-border rounded-lg w-full max-w-md p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95 select-none">
-            <div className="flex items-center justify-between border-b border-border/80 pb-3">
-              <div className="flex items-center gap-2 text-primary font-bold text-sm">
-                <Building2 className="w-4 h-4" />
-                <span>Tạo Dự Án Khảo Sát Mới</span>
-              </div>
-              <button
-                onClick={() => setShowNewProjectModal(false)}
-                className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-surface-2"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <PortalModal
+        isOpen={showNewProjectModal}
+        onClose={() => setShowNewProjectModal(false)}
+        title="Tạo Dự Án Khảo Sát Mới"
+        icon={Building2}
+      >
+        <form onSubmit={handleCreateProjectSubmit} className="space-y-3 text-xs">
+          <div className="space-y-1">
+            <label className="text-text-secondary font-medium">Tên dự án công trình *</label>
+            <input
+              type="text"
+              required
+              placeholder="Ví dụ: Keangnam Hanoi Landmark - Tầng 24"
+              value={newProjectName}
+              onChange={(e) => setNewProjectName(e.target.value)}
+              className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium">Tên khách hàng</label>
+              <input
+                type="text"
+                placeholder="Tập đoàn Keangnam"
+                value={newProjectCustomer}
+                onChange={(e) => setNewProjectCustomer(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+              />
             </div>
 
-            <form onSubmit={handleCreateProjectSubmit} className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <label className="text-text-secondary font-medium">Tên dự án công trình *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Keangnam Hanoi Landmark - Tầng 24"
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium">Tên khách hàng</label>
-                  <input
-                    type="text"
-                    placeholder="Tập đoàn Keangnam"
-                    value={newProjectCustomer}
-                    onChange={(e) => setNewProjectCustomer(e.target.value)}
-                    className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium">Địa điểm / Địa chỉ</label>
-                  <input
-                    type="text"
-                    placeholder="Hà Nội"
-                    value={newProjectLocation}
-                    onChange={(e) => setNewProjectLocation(e.target.value)}
-                    className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-border/80 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowNewProjectModal(false)}
-                  className="px-3 py-1.5 rounded-md bg-surface-2 hover:bg-surface-3 border border-border text-text-secondary"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded-md bg-primary hover:bg-primary-hover text-white font-medium"
-                >
-                  Tạo Dự Án
-                </button>
-              </div>
-            </form>
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium">Địa điểm / Địa chỉ</label>
+              <input
+                type="text"
+                placeholder="Hà Nội"
+                value={newProjectLocation}
+                onChange={(e) => setNewProjectLocation(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="pt-3 border-t border-border/80 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowNewProjectModal(false)}
+              className="px-3 py-1.5 rounded-md bg-surface-2 hover:bg-surface-3 border border-border text-text-secondary"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 rounded-md bg-primary hover:bg-primary-hover text-white font-medium"
+            >
+              Tạo Dự Án
+            </button>
+          </div>
+        </form>
+      </PortalModal>
 
       {/* Confirmation Modal Delete Project */}
-      {projectToDelete && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-1 border border-border rounded-lg w-full max-w-sm p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <h3 className="text-sm font-bold text-text-primary">Xác Nhận Xóa Dự Án</h3>
-            <p className="text-xs text-text-secondary">
-              Bạn có chắc chắn muốn xóa dự án này? Thao tác này sẽ làm mất toàn bộ các phòng và sơ đồ 3D đi kèm.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                onClick={() => setProjectToDelete(null)}
-                className="px-3 py-1.5 rounded bg-surface-2 hover:bg-surface-3 text-text-secondary text-xs"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                onClick={handleDeleteConfirm}
-                className="px-4 py-1.5 rounded bg-danger hover:bg-red-600 text-white text-xs font-semibold"
-              >
-                Xóa Dự Án
-              </button>
-            </div>
+      <PortalModal
+        isOpen={Boolean(projectToDelete)}
+        onClose={() => setProjectToDelete(null)}
+        title="Xác Nhận Xóa Dự Án"
+        icon={Trash2}
+        maxWidthClass="max-w-sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-text-secondary leading-relaxed">
+            Bạn có chắc chắn muốn xóa dự án này? Thao tác này sẽ xóa toàn bộ các phòng và sơ đồ 3D đi kèm.
+          </p>
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/60">
+            <button
+              onClick={() => setProjectToDelete(null)}
+              className="px-3 py-1.5 rounded bg-surface-2 hover:bg-surface-3 text-text-secondary text-xs"
+            >
+              Hủy bỏ
+            </button>
+            <button
+              onClick={handleDeleteConfirm}
+              className="px-4 py-1.5 rounded bg-danger hover:bg-red-600 text-white text-xs font-semibold"
+            >
+              Xóa Dự Án
+            </button>
           </div>
         </div>
-      )}
+      </PortalModal>
     </AppLayout>
   );
 }

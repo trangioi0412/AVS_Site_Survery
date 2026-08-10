@@ -7,7 +7,7 @@ export const MOCK_PROJECT: ProjectInfo = {
   name: "ABC Building",
   customer: "ABC Corporation",
   location: "TP. Hồ Chí Minh",
-  status: "surveying",
+  status: "survey",
   updatedAt: "10:30 AM",
 };
 
@@ -31,7 +31,7 @@ export const MOCK_PROJECTS_LIST: ProjectInfo[] = [
     name: "Keangnam Landmark 72",
     customer: "Keangnam Vina",
     location: "Hà Nội",
-    status: "planning",
+    status: "drafting",
     updatedAt: "09:15 AM",
   },
   {
@@ -47,7 +47,7 @@ export const MOCK_PROJECTS_LIST: ProjectInfo[] = [
     name: "Vietcombank Tower HQ",
     customer: "Vietcombank",
     location: "TP. Hồ Chí Minh",
-    status: "surveying",
+    status: "survey",
     updatedAt: "08:45 AM",
   },
 ];

@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { PortalModal } from "@/components/ui/portal-modal";
+
 export default function EquipmentPage() {
   const [equipmentList, setEquipmentList] = useState<EquipmentItem[]>(MOCK_EQUIPMENT_LIBRARY);
   const [searchTerm, setSearchTerm] = useState("");
@@ -191,129 +193,117 @@ export default function EquipmentPage() {
       </div>
 
       {/* Modal Add Equipment */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-1 border border-border rounded-lg w-full max-w-md p-5 shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b border-border/80 pb-3">
-              <div className="flex items-center gap-2 text-primary font-bold text-sm">
-                <Plus className="w-4 h-4" />
-                <span>Thêm Thiết Bị AV Mới</span>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-text-secondary hover:text-text-primary p-1 rounded hover:bg-surface-2"
-              >
-                <X className="w-4 h-4" />
-              </button>
+      <PortalModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Thêm Thiết Bị AV Mới"
+        icon={Plus}
+      >
+        <form onSubmit={handleAddEquipmentSubmit} className="space-y-3 text-xs">
+          <div className="space-y-1">
+            <label className="text-text-secondary font-medium">Tên thiết bị *</label>
+            <input
+              type="text"
+              required
+              placeholder="Ví dụ: Samsung 98 Inch 4K Display"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium">Hãng sản xuất</label>
+              <input
+                type="text"
+                placeholder="Samsung"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+              />
             </div>
 
-            <form onSubmit={handleAddEquipmentSubmit} className="space-y-3 text-xs">
-              <div className="space-y-1">
-                <label className="text-text-secondary font-medium">Tên thiết bị *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Samsung 98 Inch 4K Display"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium">Hãng sản xuất</label>
-                  <input
-                    type="text"
-                    placeholder="Samsung"
-                    value={brand}
-                    onChange={(e) => setBrand(e.target.value)}
-                    className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium">Model *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="QM98R"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-text-secondary font-medium">Danh mục thiết bị</label>
-                <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value as ObjectCategory)}
-                  className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
-                >
-                  <option value="display">Màn hình Display</option>
-                  <option value="camera">Camera PTZ</option>
-                  <option value="audio">Âm thanh / Loa</option>
-                  <option value="microphone">Microphone</option>
-                  <option value="rack">Tủ Rack Server</option>
-                  <option value="infrastructure">Hạ tầng Viễn thông</option>
-                  <option value="furniture">Bàn ghế Nội thất</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 font-mono">
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium font-sans">Rộng (m)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={width}
-                    onChange={(e) => setWidth(Number(e.target.value))}
-                    className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium font-sans">Cao (m)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={height}
-                    onChange={(e) => setHeight(Number(e.target.value))}
-                    className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-text-secondary font-medium font-sans">Sâu (m)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={depth}
-                    onChange={(e) => setDepth(Number(e.target.value))}
-                    className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-3 border-t border-border/80 flex items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-3 py-1.5 rounded bg-surface-2 hover:bg-surface-3 text-text-secondary"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 rounded bg-primary hover:bg-primary-hover text-white font-medium"
-                >
-                  Thêm Thiết Bị
-                </button>
-              </div>
-            </form>
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium">Model *</label>
+              <input
+                type="text"
+                required
+                placeholder="QM98R"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="space-y-1">
+            <label className="text-text-secondary font-medium">Danh mục thiết bị</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value as ObjectCategory)}
+              className="w-full bg-surface-2 border border-border rounded-md px-3 py-2 text-text-primary focus:border-primary focus:outline-none"
+            >
+              <option value="display">Màn hình Display</option>
+              <option value="camera">Camera PTZ</option>
+              <option value="audio">Âm thanh / Loa</option>
+              <option value="microphone">Microphone</option>
+              <option value="rack">Tủ Rack Server</option>
+              <option value="infrastructure">Hạ tầng Viễn thông</option>
+              <option value="furniture">Bàn ghế Nội thất</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 font-mono">
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium font-sans">Rộng (m)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={width}
+                onChange={(e) => setWidth(Number(e.target.value))}
+                className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium font-sans">Cao (m)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={height}
+                onChange={(e) => setHeight(Number(e.target.value))}
+                className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-text-secondary font-medium font-sans">Sâu (m)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={depth}
+                onChange={(e) => setDepth(Number(e.target.value))}
+                className="w-full bg-surface-2 border border-border rounded-md px-2 py-1.5 text-text-primary"
+              />
+            </div>
+          </div>
+
+          <div className="pt-3 border-t border-border/80 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowAddModal(false)}
+              className="px-3 py-1.5 rounded bg-surface-2 hover:bg-surface-3 text-text-secondary"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 rounded bg-primary hover:bg-primary-hover text-white font-medium"
+            >
+              Thêm Thiết Bị
+            </button>
+          </div>
+        </form>
+      </PortalModal>
     </AppLayout>
   );
 }

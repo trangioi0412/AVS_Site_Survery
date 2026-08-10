@@ -30,12 +30,19 @@ export interface InfrastructureItem {
   position: [number, number, number];
 }
 
+export type ProjectStatus =
+  | "survey"
+  | "drafting"
+  | "pending_approval"
+  | "approved"
+  | "completed";
+
 export interface ProjectInfo {
   id: string;
   name: string;
   customer: string;
   location: string;
-  status: "surveying" | "planning" | "approved" | "completed";
+  status: ProjectStatus;
   createdAt?: string;
   updatedAt: string;
 }

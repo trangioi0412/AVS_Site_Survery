@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback } from "react";
+import React, { useRef, useCallback, useState } from "react";
 import { ThreeEvent } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
 import { SceneObject } from "@/types/editor";
@@ -10,35 +10,44 @@ interface SceneObjectItemProps {
   object: SceneObject;
 }
 
-// Get display color based on object type and status
+// Get display color based on object type, category, and status
 function getObjectColor(object: SceneObject, isSelected: boolean): string {
-  if (isSelected) return "#3b82f6";
+  if (isSelected) return "#38bdf8"; // Vibrant sky blue selection
 
-  // Architecture - dark neutral
+  // Architecture - distinct floor vs wall contrast
   if (object.category === "architecture") {
-    if (object.type === "Floor") return "#111827";
-    if (object.type === "Wall") return "#1e293b";
-    if (object.type === "Door") return "#334155";
-    if (object.type === "Ceiling") return "#0f172a";
-    return "#1e293b";
+    if (object.type === "Floor") return "#334155"; // Clear slate floor plane
+    if (object.type === "Wall") return "#cbd5e1";  // Light crisp wall tone
+    if (object.type === "Door") return "#f59e0b";  // Warm wood/amber door
+    if (object.type === "Ceiling") return "#1e293b";
+    return "#64748b";
   }
 
-  // Furniture - slate
+  // Furniture - distinct wood/dark slate tones
   if (object.category === "furniture") {
-    if (object.type === "Table") return "#2d3f55";
-    if (object.type === "Chair") return "#374151";
-    return "#374151";
+    if (object.type === "Table") return "#475569";
+    if (object.type === "Chair") return "#1e293b";
+    return "#334155";
   }
 
-  // Equipment - status-based colors
+  // Category-specific equipment color coding
+  if (object.category === "display") return "#0284c7";       // Cyan Display
+  if (object.category === "camera") return "#10b981";        // Emerald Camera
+  if (object.category === "audio") return "#a855f7";         // Purple Audio
+  if (object.category === "microphone") return "#f59e0b";    // Amber Mic
+  if (object.category === "rack") return "#3b82f6";          // Royal Rack
+  if (object.category === "infrastructure") return "#f97316"; // Orange Infrastructure
+
+  // Status-based fallback colors
   if (object.status === "existing") return "#16a34a";   // green
-  if (object.status === "proposed") return "#7c3aed";   // purple
-  if (object.status === "remove") return "#dc2626";     // red
-  return object.color || "#475569";
+  if (object.status === "proposed") return "#8b5cf6";   // purple
+  if (object.status === "remove") return "#ef4444";     // red
+  return object.color || "#38bdf8";
 }
 
-function getEmissiveColor(object: SceneObject, isSelected: boolean): string {
-  if (isSelected) return "#1d4ed8";
+function getEmissiveColor(object: SceneObject, isSelected: boolean, isHovered: boolean): string {
+  if (isSelected) return "#0284c7";
+  if (isHovered) return "#2563eb";
   if (object.status === "proposed") return "#4c1d95";
   if (object.status === "existing") return "#14532d";
   return "#000000";
@@ -54,6 +63,7 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
     gridSize,
   } = useEditorStore();
 
+  const [isHovered, setIsHovered] = useState(false);
   const isSelected = selectedObjectId === object.id;
   const groupRef = useRef<any>(null);
 
@@ -69,7 +79,7 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
 
   const dim = object.dimensions || { width: 1, height: 1, depth: 1 };
   const baseColor = getObjectColor(object, isSelected);
-  const emissiveColor = getEmissiveColor(object, isSelected);
+  const emissiveColor = getEmissiveColor(object, isSelected, isHovered);
 
   const isArchitecture = object.category === "architecture";
   const isMetal = object.category === "rack" || object.type?.includes("Rack");
@@ -94,9 +104,11 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
         onClick={handleClick}
         onPointerOver={(e) => {
           e.stopPropagation();
+          setIsHovered(true);
           document.body.style.cursor = "pointer";
         }}
         onPointerOut={() => {
+          setIsHovered(false);
           document.body.style.cursor = "auto";
         }}
       >
@@ -105,12 +117,12 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
           color={baseColor}
           emissive={emissiveColor}
           emissiveIntensity={
-            isSelected ? 0.35 : object.status === "proposed" ? 0.12 : 0.04
+            isSelected ? 0.45 : isHovered ? 0.25 : object.status === "proposed" ? 0.15 : 0.05
           }
-          roughness={isMetal ? 0.2 : 0.7}
-          metalness={isMetal ? 0.8 : 0.05}
+          roughness={isFloor ? 0.9 : isMetal ? 0.2 : 0.6}
+          metalness={isMetal ? 0.85 : 0.05}
           transparent={isArchitecture && object.type === "Wall"}
-          opacity={isArchitecture && object.type === "Wall" ? 0.85 : 1}
+          opacity={isArchitecture && object.type === "Wall" ? 0.8 : 1}
         />
       </mesh>
 
@@ -121,25 +133,25 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
             args={[dim.width + 0.06, dim.height + 0.06, dim.depth + 0.06]}
           />
           <meshBasicMaterial
-            color="#60a5fa"
+            color="#38bdf8"
             wireframe
             transparent
-            opacity={0.7}
+            opacity={0.85}
           />
         </mesh>
       )}
 
-      {/* Edge highlight ring for proposed equipment */}
-      {object.status === "proposed" && !isSelected && (
+      {/* Hover outline highlight */}
+      {isHovered && !isSelected && (
         <mesh>
           <boxGeometry
             args={[dim.width + 0.04, dim.height + 0.04, dim.depth + 0.04]}
           />
           <meshBasicMaterial
-            color="#8b5cf6"
+            color="#60a5fa"
             wireframe
             transparent
-            opacity={0.3}
+            opacity={0.5}
           />
         </mesh>
       )}

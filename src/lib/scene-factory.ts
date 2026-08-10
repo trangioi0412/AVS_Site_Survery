@@ -251,7 +251,7 @@ export function createNewProject(data: {
     name: data.name.trim(),
     customer: data.customer?.trim() || "Khách hàng mới",
     location: data.location?.trim() || "Việt Nam",
-    status: "surveying",
+    status: "survey",
     createdAt: new Date().toISOString(),
     updatedAt: nowStr,
   };
