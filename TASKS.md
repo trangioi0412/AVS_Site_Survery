@@ -98,9 +98,17 @@
    - Xây dựng component `PortalModal` sử dụng `React.createPortal(..., document.body)` thoát khỏi stacking context của TopBar/AppShell.
    - Hỗ trợ full viewport fixed backdrop `z-[9999]`, scroll locking `document.body.style.overflow = "hidden"`, gõ phím `Escape` đóng modal và `e.stopPropagation()`.
    - Áp dụng `PortalModal` đồng bộ cho toàn bộ modal trong `TopBar`, `EquipmentPage`, `ProjectsPage`, `ProjectDetailPage` và `RoomsPage`.
-6. **Automated Testing & Build Verification**:
-   - Tạo test suite `tests/task-002d-workflow-ui.test.ts` (5 tests).
-   - `npm test`: Pass 100% (18/18 Vitest tests passed).
+7. **Unified App Shell, Sidebar & Project/Room Context Navigation Integration**:
+   - Tái cấu trúc kiến trúc `EditorLayout` thống nhất với `AppLayout`: `AppSidebar` nằm ở cột bên trái ngoài cùng (chiều cao 100vh), `TopBar` nằm trong cột nội dung bên phải sidebar.
+   - Loại bỏ logo `AV Survey 3D` và nút toggle lặp lại khỏi `TopBar`, đảm bảo chỉ xuất hiện duy nhất **1 Logo Brand** ở đỉnh của `AppSidebar`.
+   - Hợp nhất hai sidebar `AppSidebar` và `MainSidebar` thành một `AppSidebar` duy nhất cho toàn bộ hệ thống.
+   - Xây dựng `src/lib/navigation-utils.ts` với `resolveNavigationContext` và `getNavigationItems` ưu tiên Dynamic Route URL parameters (`/projects/:projectId/rooms/:roomId/editor`) hơn store state legacy.
+   - Loại bỏ toàn bộ các fallback mock IDs (`project-abc-building`, `room-101`) trong giao diện navigation.
+   - Sửa triệt để active state cho mục "Phòng" (`/projects/[projectId]/rooms`) và "3D Editor" (`/projects/[projectId]/rooms/[roomId]/editor`), loại bỏ hoàn toàn lỗi nhận nhầm thành "Dự án".
+   - Tự động xử lý an toàn trạng thái `disabled` kèm lý do rõ ràng khi dữ liệu chưa hydration hoặc chưa chọn Project/Room hợp lệ.
+8. **Automated Testing & Build Verification**:
+   - Tạo test suite `tests/task-002d-unified-navigation.test.ts` (8 tests) kiểm tra toàn bộ 8 kịch bản điều hướng, active state, dynamic route priority, hydration safety và persistence integrity.
+   - `npm test`: Pass 100% (26/26 Vitest tests passed trong 5 test files).
    - `npx tsc --noEmit`: Pass 100% (0 errors).
    - `npm run lint`: Pass 100% (0 warnings, 0 errors).
    - `npm run build`: Build thành công 100% (13 static/dynamic routes generated).

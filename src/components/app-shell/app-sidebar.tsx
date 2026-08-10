@@ -3,42 +3,40 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  FolderKanban,
-  ClipboardCheck,
-  Cpu,
-  Library,
-  FileText,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  Box,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Box } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
 import { cn } from "@/lib/utils";
+import { resolveNavigationContext, getNavigationItems } from "@/lib/navigation-utils";
+import { toast } from "sonner";
 
 export const AppSidebar: React.FC = () => {
-  const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar, currentProject, currentRoom } = useEditorStore();
+  const pathname = usePathname() || "";
+  const {
+    sidebarCollapsed,
+    toggleSidebar,
+    isHydrated,
+    projects,
+    rooms,
+    currentProject,
+    currentRoom,
+  } = useEditorStore();
 
-  const projId = currentProject?.id || "project-abc-building";
-  const roomId = currentRoom?.id || "room-101";
+  const navContext = resolveNavigationContext(pathname, {
+    isHydrated,
+    projects,
+    rooms,
+    currentProject,
+    currentRoom,
+  });
 
-  const NAV_ITEMS = [
-    { id: "dashboard", href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-    { id: "projects", href: "/projects", label: "Dự án", icon: FolderKanban },
-    {
-      id: "survey",
-      href: `/projects/${projId}/survey`,
-      label: "Khảo sát",
-      icon: ClipboardCheck,
-    },
-    { id: "equipment", href: "/equipment", label: "Thiết bị", icon: Cpu },
-    { id: "library", href: "/library", label: "Thư viện", icon: Library },
-    { id: "reports", href: "/reports", label: "Báo cáo", icon: FileText },
-    { id: "settings", href: "/settings", label: "Cài đặt", icon: Settings },
-  ];
+  const navItems = getNavigationItems(pathname, navContext);
+
+  const handleDisabledClick = (e: React.MouseEvent, reason?: string) => {
+    e.preventDefault();
+    if (reason) {
+      toast.info(reason);
+    }
+  };
 
   return (
     <aside
@@ -64,36 +62,48 @@ export const AppSidebar: React.FC = () => {
 
         {/* Navigation Links */}
         <nav className="p-2 space-y-1 mt-2">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              item.id === "dashboard"
-                ? pathname === "/dashboard"
-                : item.id === "survey"
-                ? pathname.endsWith("/survey")
-                : item.id === "projects"
-                ? pathname === "/projects" || (pathname.startsWith("/projects/") && !pathname.endsWith("/survey") && !pathname.endsWith("/editor"))
-                : pathname.startsWith(item.href);
+            const isActive = item.isActive;
+            const isDisabled = item.disabled;
 
             return (
               <Link
                 key={item.id}
-                href={item.href}
+                href={isDisabled ? "#" : item.href}
+                onClick={isDisabled ? (e) => handleDisabledClick(e, item.disabledReason) : undefined}
+                aria-disabled={isDisabled}
                 className={cn(
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-xs font-medium transition-all group relative",
                   isActive
                     ? "bg-primary/15 text-primary border border-primary/30 shadow-sm font-semibold"
+                    : isDisabled
+                    ? "text-text-secondary/40 cursor-not-allowed hover:bg-transparent"
                     : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
                 )}
-                title={sidebarCollapsed ? item.label : undefined}
+                title={
+                  sidebarCollapsed
+                    ? isDisabled && item.disabledReason
+                      ? `${item.label} (${item.disabledReason})`
+                      : item.label
+                    : item.disabledReason
+                }
               >
                 <Icon
                   className={cn(
-                    "w-4 h-4 shrink-0 transition-transform group-hover:scale-110",
-                    isActive ? "text-primary" : "text-text-secondary group-hover:text-text-primary"
+                    "w-4 h-4 shrink-0 transition-transform",
+                    isActive
+                      ? "text-primary group-hover:scale-110"
+                      : isDisabled
+                      ? "text-text-secondary/30"
+                      : "text-text-secondary group-hover:text-text-primary group-hover:scale-110"
                   )}
                 />
-                {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
+                {!sidebarCollapsed && (
+                  <span className={cn("truncate", isDisabled && "text-text-secondary/40")}>
+                    {item.label}
+                  </span>
+                )}
                 {isActive && (
                   <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-r-full" />
                 )}

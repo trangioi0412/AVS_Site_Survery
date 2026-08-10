@@ -198,38 +198,10 @@ export const TopBar: React.FC = () => {
   return (
     <>
       <header className="h-[56px] bg-surface-1 border-b border-border px-4 flex items-center justify-between select-none z-30 relative shrink-0">
-        {/* Left section: Logo, Sidebar Toggle, Project & Room Selectors */}
-        <div className="flex items-center gap-3">
-          <div
-            onClick={() => setShowAboutModal(true)}
-            className="flex items-center gap-2.5 font-bold text-text-primary text-base tracking-wide pr-2 border-r border-border/60 cursor-pointer group"
-          >
-            <div className="w-8 h-8 rounded-md bg-primary flex items-center justify-center text-white shadow-md shadow-primary/20 group-hover:scale-105 transition-transform">
-              <Box className="w-5 h-5" />
-            </div>
-            <span className="bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">
-              AV Survey{" "}
-              <span className="text-xs font-normal px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 ml-1">
-                3D
-              </span>
-            </span>
-          </div>
-
-          <button
-            onClick={toggleSidebar}
-            title={sidebarCollapsed ? "Mở rộng thanh bên" : "Thu gọn thanh bên"}
-            className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-surface-2 rounded-md transition-colors"
-            aria-label="Toggle Sidebar"
-          >
-            {sidebarCollapsed ? (
-              <PanelLeftOpen className="w-4 h-4" />
-            ) : (
-              <PanelLeftClose className="w-4 h-4" />
-            )}
-          </button>
-
+        {/* Left section: Project & Room Selectors */}
+        <div className="flex items-center gap-2.5">
           {/* Selectors */}
-          <div className="flex items-center gap-2 text-xs text-text-secondary pl-1">
+          <div className="flex items-center gap-2 text-xs text-text-secondary">
             {/* Project Selector Dropdown */}
             <div className="relative">
               <button
