@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { EditorMode, SceneObject, ViewMode } from "@/types/editor";
+import {
+  EditorMode,
+  SceneObject,
+  ViewMode,
+  RoomDimensions,
+  EditorSnapshot,
+  HistoryEntry,
+  HistoryTransaction,
+} from "@/types/editor";
 import { ProjectInfo, ProjectStatus, RoomInfo } from "@/types/equipment";
 import {
   getInitialProjects,
@@ -15,6 +23,50 @@ import {
   deepClone,
   updateArchitecturalObjects,
 } from "@/lib/scene-factory";
+
+const MAX_HISTORY_ENTRIES = 100;
+
+function createSnapshot(objects: SceneObject[], dimensions: RoomDimensions): EditorSnapshot {
+  return {
+    objects: deepClone(objects || []),
+    dimensions: {
+      width: Number(dimensions?.width) || 8,
+      length: Number(dimensions?.length) || 10,
+      height: Number(dimensions?.height) || 3.2,
+    },
+  };
+}
+
+function isSnapshotEqual(snapA: EditorSnapshot, snapB: EditorSnapshot): boolean {
+  if (!snapA || !snapB) return false;
+  if (
+    snapA.dimensions.width !== snapB.dimensions.width ||
+    snapA.dimensions.length !== snapB.dimensions.length ||
+    snapA.dimensions.height !== snapB.dimensions.height
+  ) {
+    return false;
+  }
+  if (snapA.objects.length !== snapB.objects.length) return false;
+  return JSON.stringify(snapA.objects) === JSON.stringify(snapB.objects);
+}
+
+function createBaselineHistory(
+  objects: SceneObject[],
+  dimensions: RoomDimensions
+): { history: HistoryEntry[]; historyIndex: number; activeHistoryTransaction: null } {
+  const snapshot = createSnapshot(objects, dimensions);
+  const baselineEntry: HistoryEntry = {
+    id: `baseline-${Date.now()}`,
+    label: "Initial Scene",
+    timestamp: Date.now(),
+    snapshot,
+  };
+  return {
+    history: [baselineEntry],
+    historyIndex: 0,
+    activeHistoryTransaction: null,
+  };
+}
 
 interface EditorState {
   // State
@@ -41,14 +93,16 @@ interface EditorState {
   showGrid: boolean;
   showHelpers: boolean;
   sidebarCollapsed: boolean;
-  history: SceneObject[][];
+  history: HistoryEntry[];
   historyIndex: number;
+  activeHistoryTransaction: HistoryTransaction | null;
 
   // Actions
   setHydrated: (hydrated: boolean) => void;
   selectObject: (id: string | null) => void;
   addObject: (object: SceneObject) => void;
   updateObject: (id: string, changes: Partial<SceneObject>) => void;
+  updateObjectWithHistory: (id: string, changes: Partial<SceneObject>, label: string) => void;
   removeObject: (id: string) => void;
   setEditorMode: (mode: EditorMode) => void;
   setViewMode: (mode: ViewMode) => void;
@@ -59,6 +113,10 @@ interface EditorState {
   toggleGrid: () => void;
   toggleHelpers: () => void;
   toggleSidebar: () => void;
+
+  beginHistoryTransaction: (label: string) => void;
+  commitHistoryTransaction: () => void;
+  cancelHistoryTransaction: (options?: { restore?: boolean }) => void;
 
   createProject: (data: { name: string; customer?: string; location?: string }) => void;
   addRoomToProject: (
@@ -181,6 +239,9 @@ function normalizePersistedState(state: any): Partial<EditorState> {
   };
 }
 
+const initialSceneObjects = deepClone(MOCK_ROOM.sceneObjects || []);
+const initialBaseline = createBaselineHistory(initialSceneObjects, MOCK_ROOM.dimensions);
+
 export const useEditorStore = create<EditorState>()(
   persist(
     (set, get) => ({
@@ -189,7 +250,7 @@ export const useEditorStore = create<EditorState>()(
       rooms: getInitialRoomsMap(),
       currentProject: MOCK_PROJECT,
       currentRoom: MOCK_ROOM,
-      objects: deepClone(MOCK_ROOM.sceneObjects || []),
+      objects: initialSceneObjects,
       isDirty: false,
       lastSavedAt: "10:30 AM",
       isHydrated: false,
@@ -208,24 +269,104 @@ export const useEditorStore = create<EditorState>()(
       showGrid: true,
       showHelpers: true,
       sidebarCollapsed: false,
-      history: [deepClone(MOCK_ROOM.sceneObjects || [])],
-      historyIndex: 0,
+      ...initialBaseline,
 
       setHydrated: (hydrated) => set({ isHydrated: hydrated }),
 
       selectObject: (id) => set({ selectedObjectId: id }),
 
+      beginHistoryTransaction: (label) => {
+        const { activeHistoryTransaction, objects, currentRoom, isDirty } = get();
+        if (activeHistoryTransaction) {
+          const currentSnap = createSnapshot(objects, currentRoom.dimensions);
+          if (!isSnapshotEqual(activeHistoryTransaction.before, currentSnap)) {
+            get().commitHistoryTransaction();
+          }
+        }
+        set({
+          activeHistoryTransaction: {
+            label,
+            before: createSnapshot(get().objects, get().currentRoom.dimensions),
+            wasDirty: isDirty,
+          },
+        });
+      },
+
+      commitHistoryTransaction: () => {
+        const { activeHistoryTransaction, objects, currentRoom, history, historyIndex } = get();
+        if (!activeHistoryTransaction) return;
+
+        const currentSnap = createSnapshot(objects, currentRoom.dimensions);
+        if (isSnapshotEqual(activeHistoryTransaction.before, currentSnap)) {
+          set({ activeHistoryTransaction: null });
+          return;
+        }
+
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: activeHistoryTransaction.label,
+          timestamp: Date.now(),
+          snapshot: currentSnap,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
+
+        set({
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
+          isDirty: true,
+        });
+      },
+
+      cancelHistoryTransaction: (options) => {
+        const { activeHistoryTransaction, currentRoom } = get();
+        if (!activeHistoryTransaction) return;
+
+        if (options?.restore) {
+          const restoredObjects = deepClone(activeHistoryTransaction.before.objects);
+          const restoredDims = activeHistoryTransaction.before.dimensions;
+          const updatedRoom: RoomInfo = {
+            ...currentRoom,
+            dimensions: restoredDims,
+            sceneObjects: deepClone(restoredObjects),
+          };
+          set({
+            objects: restoredObjects,
+            currentRoom: updatedRoom,
+            isDirty: activeHistoryTransaction.wasDirty,
+            activeHistoryTransaction: null,
+          });
+        } else {
+          set({ activeHistoryTransaction: null });
+        }
+      },
+
       addObject: (newObj) => {
-        const { objects, history, historyIndex } = get();
+        const { objects, history, historyIndex, currentRoom } = get();
         const updated = [...objects, newObj];
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(deepClone(updated));
+        const snapshot = createSnapshot(updated, currentRoom.dimensions);
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: `Add object: ${newObj.name || newObj.type}`,
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
 
         set({
           objects: updated,
           selectedObjectId: newObj.id,
           history: newHistory,
           historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
           isDirty: true,
         });
       },
@@ -239,17 +380,65 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
+      updateObjectWithHistory: (id, changes, label) => {
+        const { objects, history, historyIndex, currentRoom } = get();
+        const targetObj = objects.find((o) => o.id === id);
+        if (!targetObj) return;
+
+        const updated = objects.map((obj) =>
+          obj.id === id ? { ...obj, ...changes } : obj
+        );
+        const snapshot = createSnapshot(updated, currentRoom.dimensions);
+        if (isSnapshotEqual(createSnapshot(objects, currentRoom.dimensions), snapshot)) {
+          return;
+        }
+
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label,
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
+
+        set({
+          objects: updated,
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
+          isDirty: true,
+        });
+      },
+
       removeObject: (id) => {
-        const { objects, history, historyIndex, selectedObjectId } = get();
+        const { objects, history, historyIndex, selectedObjectId, currentRoom } = get();
+        const targetObj = objects.find((o) => o.id === id);
+        if (!targetObj) return;
+
         const updated = objects.filter((obj) => obj.id !== id);
-        const newHistory = history.slice(0, historyIndex + 1);
-        newHistory.push(deepClone(updated));
+        const snapshot = createSnapshot(updated, currentRoom.dimensions);
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: `Delete object: ${targetObj.name}`,
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
 
         set({
           objects: updated,
           selectedObjectId: selectedObjectId === id ? null : selectedObjectId,
           history: newHistory,
           historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
           isDirty: true,
         });
       },
@@ -259,21 +448,63 @@ export const useEditorStore = create<EditorState>()(
       setViewMode: (mode) => set({ viewMode: mode }),
 
       toggleVisibility: (id) => {
-        set((state) => ({
-          objects: state.objects.map((obj) =>
-            obj.id === id ? { ...obj, visible: !obj.visible } : obj
-          ),
+        const { objects, history, historyIndex, currentRoom } = get();
+        const targetObj = objects.find((o) => o.id === id);
+        if (!targetObj) return;
+
+        const updated = objects.map((obj) =>
+          obj.id === id ? { ...obj, visible: !obj.visible } : obj
+        );
+        const snapshot = createSnapshot(updated, currentRoom.dimensions);
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: `Toggle visibility: ${targetObj.name}`,
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
+
+        set({
+          objects: updated,
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
           isDirty: true,
-        }));
+        });
       },
 
       toggleLock: (id) => {
-        set((state) => ({
-          objects: state.objects.map((obj) =>
-            obj.id === id ? { ...obj, locked: !obj.locked } : obj
-          ),
+        const { objects, history, historyIndex, currentRoom } = get();
+        const targetObj = objects.find((o) => o.id === id);
+        if (!targetObj) return;
+
+        const updated = objects.map((obj) =>
+          obj.id === id ? { ...obj, locked: !obj.locked } : obj
+        );
+        const snapshot = createSnapshot(updated, currentRoom.dimensions);
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: `Toggle lock: ${targetObj.name}`,
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
+
+        set({
+          objects: updated,
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
           isDirty: true,
-        }));
+        });
       },
 
       toggleSnap: () => set((state) => ({ snapEnabled: !state.snapEnabled })),
@@ -301,6 +532,7 @@ export const useEditorStore = create<EditorState>()(
         };
 
         const roomScene = deepClone(room.sceneObjects || []);
+        const baseline = createBaselineHistory(roomScene, room.dimensions);
 
         set({
           projects: updatedProjects,
@@ -309,8 +541,7 @@ export const useEditorStore = create<EditorState>()(
           currentRoom: room,
           objects: roomScene,
           selectedObjectId: null,
-          history: [roomScene],
-          historyIndex: 0,
+          ...baseline,
           isDirty: false,
         });
 
@@ -406,6 +637,7 @@ export const useEditorStore = create<EditorState>()(
         }
 
         const activeScene = deepClone(roomScene);
+        const baseline = createBaselineHistory(activeScene, selectedRoom.dimensions);
 
         set({
           rooms: updatedRoomsMap,
@@ -413,8 +645,7 @@ export const useEditorStore = create<EditorState>()(
           currentRoom: selectedRoom,
           objects: activeScene,
           selectedObjectId: null,
-          history: [activeScene],
-          historyIndex: 0,
+          ...baseline,
           isDirty: false,
         });
 
@@ -468,13 +699,14 @@ export const useEditorStore = create<EditorState>()(
           updatedRoomsMap[currentProject.id] = [...currentProjRooms, finalTargetRoom];
         }
 
+        const baseline = createBaselineHistory(activeScene, finalTargetRoom.dimensions);
+
         set({
           rooms: updatedRoomsMap,
           currentRoom: finalTargetRoom,
           objects: activeScene,
           selectedObjectId: null,
-          history: [activeScene],
-          historyIndex: 0,
+          ...baseline,
           isDirty: false,
         });
       },
@@ -493,7 +725,15 @@ export const useEditorStore = create<EditorState>()(
       },
 
       updateRoomDimensions: (dims) => {
-        const { currentProject, currentRoom, objects, rooms } = get();
+        const { currentProject, currentRoom, objects, rooms, history, historyIndex } = get();
+
+        if (
+          currentRoom.dimensions.width === dims.width &&
+          currentRoom.dimensions.length === dims.length &&
+          currentRoom.dimensions.height === dims.height
+        ) {
+          return;
+        }
 
         const updatedObjects = updateArchitecturalObjects(objects, dims);
 
@@ -512,10 +752,26 @@ export const useEditorStore = create<EditorState>()(
           ),
         };
 
+        const snapshot = createSnapshot(updatedObjects, dims);
+        let newHistory = history.slice(0, historyIndex + 1);
+        newHistory.push({
+          id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          label: "Update room dimensions",
+          timestamp: Date.now(),
+          snapshot,
+        });
+
+        if (newHistory.length > MAX_HISTORY_ENTRIES) {
+          newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+        }
+
         set({
           currentRoom: updatedRoom,
           objects: updatedObjects,
           rooms: updatedRoomsMap,
+          history: newHistory,
+          historyIndex: newHistory.length - 1,
+          activeHistoryTransaction: null,
           isDirty: true,
         });
       },
@@ -584,19 +840,24 @@ export const useEditorStore = create<EditorState>()(
         }
         const initialProjects = getInitialProjects();
         const initialRoomsMap = getInitialRoomsMap();
+        const firstProj = initialProjects[0];
+        const firstRoom = initialRoomsMap[firstProj.id][0];
+        const initialScene = deepClone(firstRoom.sceneObjects || []);
+        const baseline = createBaselineHistory(initialScene, firstRoom.dimensions);
+
         set({
           projects: initialProjects,
           rooms: initialRoomsMap,
-          currentProject: initialProjects[0],
-          currentRoom: initialRoomsMap[initialProjects[0].id][0],
-          objects: deepClone(initialRoomsMap[initialProjects[0].id][0].sceneObjects || []),
+          currentProject: firstProj,
+          currentRoom: firstRoom,
+          objects: initialScene,
           isDirty: false,
           lastSavedAt: "Vừa xong",
           surveyDrafts: {},
           unit: "m",
           theme: "dark",
           selectedObjectId: null,
-          historyIndex: 0,
+          ...baseline,
         });
       },
 
@@ -621,24 +882,100 @@ export const useEditorStore = create<EditorState>()(
       // --- HISTORY & UNDO/REDO ---
 
       undo: () => {
-        const { history, historyIndex } = get();
+        const {
+          history,
+          historyIndex,
+          selectedObjectId,
+          currentRoom,
+          currentProject,
+          rooms,
+          activeHistoryTransaction,
+        } = get();
+
+        if (activeHistoryTransaction) {
+          set({ activeHistoryTransaction: null });
+        }
+
         if (historyIndex > 0) {
           const nextIndex = historyIndex - 1;
+          const targetSnap = history[nextIndex].snapshot;
+          const restoredObjects = deepClone(targetSnap.objects);
+          const restoredDims = targetSnap.dimensions;
+
+          const updatedRoom: RoomInfo = {
+            ...currentRoom,
+            dimensions: restoredDims,
+            sceneObjects: deepClone(restoredObjects),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const projectRooms = rooms[currentProject.id] || [];
+          const updatedRoomsMap = {
+            ...rooms,
+            [currentProject.id]: projectRooms.map((r) =>
+              r.id === currentRoom.id ? updatedRoom : r
+            ),
+          };
+
+          const isSelectedStillValid = restoredObjects.some((o) => o.id === selectedObjectId);
+
           set({
-            objects: deepClone(history[nextIndex]),
+            objects: restoredObjects,
+            currentRoom: updatedRoom,
+            rooms: updatedRoomsMap,
+            selectedObjectId: isSelectedStillValid ? selectedObjectId : null,
             historyIndex: nextIndex,
+            activeHistoryTransaction: null,
             isDirty: true,
           });
         }
       },
 
       redo: () => {
-        const { history, historyIndex } = get();
+        const {
+          history,
+          historyIndex,
+          selectedObjectId,
+          currentRoom,
+          currentProject,
+          rooms,
+          activeHistoryTransaction,
+        } = get();
+
+        if (activeHistoryTransaction) {
+          set({ activeHistoryTransaction: null });
+        }
+
         if (historyIndex < history.length - 1) {
           const nextIndex = historyIndex + 1;
+          const targetSnap = history[nextIndex].snapshot;
+          const restoredObjects = deepClone(targetSnap.objects);
+          const restoredDims = targetSnap.dimensions;
+
+          const updatedRoom: RoomInfo = {
+            ...currentRoom,
+            dimensions: restoredDims,
+            sceneObjects: deepClone(restoredObjects),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const projectRooms = rooms[currentProject.id] || [];
+          const updatedRoomsMap = {
+            ...rooms,
+            [currentProject.id]: projectRooms.map((r) =>
+              r.id === currentRoom.id ? updatedRoom : r
+            ),
+          };
+
+          const isSelectedStillValid = restoredObjects.some((o) => o.id === selectedObjectId);
+
           set({
-            objects: deepClone(history[nextIndex]),
+            objects: restoredObjects,
+            currentRoom: updatedRoom,
+            rooms: updatedRoomsMap,
+            selectedObjectId: isSelectedStillValid ? selectedObjectId : null,
             historyIndex: nextIndex,
+            activeHistoryTransaction: null,
             isDirty: true,
           });
         }
@@ -670,8 +1007,14 @@ export const useEditorStore = create<EditorState>()(
         }
         const rawState = state || {};
         const normalized = normalizePersistedState(rawState);
+        const baseline = createBaselineHistory(
+          normalized.objects || [],
+          normalized.currentRoom?.dimensions || { width: 8, length: 10, height: 3.2 }
+        );
         useEditorStore.setState({
           ...normalized,
+          ...baseline,
+          selectedObjectId: null,
           isHydrated: true,
         });
       },

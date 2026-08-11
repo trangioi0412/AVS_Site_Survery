@@ -59,6 +59,8 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
     selectObject,
     editorMode,
     updateObject,
+    beginHistoryTransaction,
+    commitHistoryTransaction,
     snapEnabled,
     gridSize,
   } = useEditorStore();
@@ -159,12 +161,25 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
   );
 
   if (showTransformControls) {
+    const labelPrefix =
+      editorMode === "translate"
+        ? "Move"
+        : editorMode === "rotate"
+        ? "Rotate"
+        : "Scale";
+
     return (
       <TransformControls
         mode={editorMode}
         size={0.75}
         translationSnap={snapEnabled ? gridSize : undefined}
         rotationSnap={snapEnabled ? Math.PI / 12 : undefined}
+        onMouseDown={() => {
+          beginHistoryTransaction(`${labelPrefix} object: ${object.name}`);
+        }}
+        onMouseUp={() => {
+          commitHistoryTransaction();
+        }}
         onObjectChange={() => {
           if (groupRef.current) {
             const target = groupRef.current;

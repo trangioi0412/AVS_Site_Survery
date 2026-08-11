@@ -5,8 +5,11 @@
 - **TASK-001B**: Hardening & Verification (✅ Completed & Verified)
 - **TASK-002**: App Shell, Routing & Management Pages (✅ Completed & Verified)
 - **TASK-002B**: Navigation, Editor Route & Scene Switching Integration Audit (✅ Completed & Verified)
-- **TASK-002C**: Fix Editor bị kẹt vô hạn tại màn hình Loading (✅ Completed & Verified)
-- **TASK-003**: Undo/Redo, Measurement, Annotation & Editor Tools
+- **TASK-002D**: Unified Sidebar, Project/Room Context Navigation, Dynamic Route Resolution & Workflow Integration (✅ Completed & Verified)
+- **TASK-003A**: Transactional Undo/Redo Foundation (⏳ Pending browser verification)
+- **TASK-003B**: Measurement Tool
+- **TASK-003C**: Annotation Tool
+- **TASK-003D**: Editor Tools & Integration Hardening
 - **TASK-004**: GLTF/GLB Asset Loader
 - **TASK-005**: PDF/Excel/Snapshot Reporting
 - **TASK-006**: Backend, Authentication & Cloud Sharing
@@ -134,4 +137,35 @@
   * `npx tsc --noEmit`: Pass 100% (0 errors)
   * `npm run build`: Pass 100%
   * `git diff --check`: Pass 100%
+
+---
+
+## TASK-003A — Transactional Undo/Redo Foundation
+
+* **Trạng thái**: ⏳ Pending browser verification
+* **Nguyên nhân gốc**:
+  * Prior history chỉ lưu `SceneObject[][]`, thiếu `dimensions` và metadata thao tác.
+  * Chỉ `addObject` và `removeObject` ghi history snapshot; `updateObject`, `toggleVisibility`, `toggleLock`, `updateRoomDimensions` không có history.
+  * `TransformControls` và `PropertiesPanel` gọi `updateObject()` liên tục trên từng frame/keystroke gây spam history nếu không dùng transaction.
+  * Hydration, project/room switching và `resetLocalStorage` chưa tạo baseline history mới độc lập.
+  * Selection không an toàn khi Undo/Redo làm mất object.
+  * Phím tắt `Ctrl+Z`/`Ctrl+Y` can thiệp vào input/textarea/modal.
+* **Kiến trúc dữ liệu**:
+  * `EditorSnapshot`: Lưu cả `objects: SceneObject[]` và `dimensions: RoomDimensions`.
+  * `HistoryEntry`: Lưu `id`, `label`, `timestamp` và `snapshot`.
+  * `HistoryTransaction`: Lưu `label`, `before` snapshot và `wasDirty` state.
+* **Vòng đời Transaction & Baseline**:
+  * Transaction API: `beginHistoryTransaction(label)`, `commitHistoryTransaction()`, `cancelHistoryTransaction({ restore })`.
+  * Single-step actions: `addObject`, `removeObject`, `toggleVisibility`, `toggleLock`, `updateRoomDimensions`, `updateObjectWithHistory`.
+  * Baseline lifecycle: Tự động reset 1 entry baseline tại `historyIndex = 0` khi khởi tạo, hydration, switch room, switch project, create project, reset localStorage.
+  * Redo branch truncation: Xóa branch redo khi có thao tác mới sau Undo.
+  * History Limit: Khống chế tối đa `MAX_HISTORY_ENTRIES = 100`.
+  * Shortcut Safety: Ngăn chặn Editor Undo/Redo shortcut khi focus đang nằm trong `input`, `textarea`, `select`, `[contenteditable]` hoặc modal.
+* **Kết quả test thực tế**:
+  * `npm run lint`: Pass 100% (0 errors, 0 warnings).
+  * `npm test`: Pass 100% (41/41 Vitest tests passed trong 6 test files).
+  * `npx tsc --noEmit`: Pass 100% (0 errors).
+  * `npm run build`: Pass 100% (13 static/dynamic routes generated).
+  * `git diff --check`: Pass 100%.
+
 

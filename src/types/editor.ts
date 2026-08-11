@@ -55,3 +55,27 @@ export interface SceneObject {
     [key: string]: unknown;
   };
 }
+
+export interface RoomDimensions {
+  width: number;
+  length: number;
+  height: number;
+}
+
+export interface EditorSnapshot {
+  objects: SceneObject[];
+  dimensions: RoomDimensions;
+}
+
+export interface HistoryEntry {
+  id: string;
+  label: string;
+  timestamp: number;
+  snapshot: EditorSnapshot;
+}
+
+export interface HistoryTransaction {
+  label: string;
+  before: EditorSnapshot;
+  wasDirty: boolean;
+}

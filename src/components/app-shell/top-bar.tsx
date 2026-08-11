@@ -99,7 +99,20 @@ export const TopBar: React.FC = () => {
   // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isInputTarget =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      const isModalOpen = document.querySelector('[role="dialog"]') !== null;
+
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        if (isInputTarget || isModalOpen || e.defaultPrevented) {
+          return;
+        }
         if (e.shiftKey) {
           e.preventDefault();
           redo();
@@ -108,6 +121,9 @@ export const TopBar: React.FC = () => {
           undo();
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        if (isInputTarget || isModalOpen || e.defaultPrevented) {
+          return;
+        }
         e.preventDefault();
         redo();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {

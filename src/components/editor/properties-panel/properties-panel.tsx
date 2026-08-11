@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   SlidersHorizontal,
   Info,
@@ -11,12 +11,6 @@ import {
   Unlock,
   Eye,
   EyeOff,
-  Tv,
-  Camera,
-  Volume2,
-  Mic,
-  Server,
-  Network,
   CheckCircle,
 } from "lucide-react";
 import { useEditorStore } from "@/stores/editor-store";
@@ -29,6 +23,9 @@ export const PropertiesPanel: React.FC = () => {
     objects,
     selectedObjectId,
     updateObject,
+    updateObjectWithHistory,
+    beginHistoryTransaction,
+    commitHistoryTransaction,
     removeObject,
     toggleLock,
     toggleVisibility,
@@ -37,6 +34,12 @@ export const PropertiesPanel: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"info" | "transform" | "advanced">("info");
 
   const selectedObject = objects.find((obj) => obj.id === selectedObjectId);
+
+  useEffect(() => {
+    return () => {
+      commitHistoryTransaction();
+    };
+  }, [selectedObjectId, commitHistoryTransaction]);
 
   if (!selectedObject) {
     return (
@@ -51,6 +54,22 @@ export const PropertiesPanel: React.FC = () => {
       </aside>
     );
   }
+
+  const handleInputFocus = (fieldLabel: string) => {
+    if (selectedObject) {
+      beginHistoryTransaction(`Edit property: ${fieldLabel} (${selectedObject.name})`);
+    }
+  };
+
+  const handleInputBlur = () => {
+    commitHistoryTransaction();
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.currentTarget.blur();
+    }
+  };
 
   const handlePositionChange = (axisIndex: 0 | 1 | 2, val: number) => {
     const newPos = [...selectedObject.position] as [number, number, number];
@@ -81,7 +100,11 @@ export const PropertiesPanel: React.FC = () => {
         ? "#ef4444"
         : "#94a3b8";
 
-    updateObject(selectedObject.id, { status, color });
+    updateObjectWithHistory(
+      selectedObject.id,
+      { status, color },
+      `Change status: ${selectedObject.name}`
+    );
     toast.info(`Đã đổi trạng thái đối tượng sang ${status.toUpperCase()}`);
   };
 
@@ -201,6 +224,9 @@ export const PropertiesPanel: React.FC = () => {
               <input
                 type="text"
                 value={selectedObject.name}
+                onFocus={() => handleInputFocus("Name")}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
                 onChange={(e) => updateObject(selectedObject.id, { name: e.target.value })}
                 className="w-full bg-surface-2 border border-border/80 rounded-md px-2.5 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
               />
@@ -213,6 +239,9 @@ export const PropertiesPanel: React.FC = () => {
                 <input
                   type="text"
                   value={selectedObject.brand || ""}
+                  onFocus={() => handleInputFocus("Brand")}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleInputKeyDown}
                   onChange={(e) => updateObject(selectedObject.id, { brand: e.target.value })}
                   className="w-full bg-surface-2 border border-border/80 rounded-md px-2.5 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none"
                 />
@@ -223,6 +252,9 @@ export const PropertiesPanel: React.FC = () => {
                 <input
                   type="text"
                   value={selectedObject.model || ""}
+                  onFocus={() => handleInputFocus("Model")}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleInputKeyDown}
                   onChange={(e) => updateObject(selectedObject.id, { model: e.target.value })}
                   className="w-full bg-surface-2 border border-border/80 rounded-md px-2.5 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none font-mono"
                 />
@@ -235,6 +267,9 @@ export const PropertiesPanel: React.FC = () => {
               <input
                 type="text"
                 value={(selectedObject.metadata?.installationPosition as string) || "Tường phòng họp"}
+                onFocus={() => handleInputFocus("Installation Position")}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
                 onChange={(e) =>
                   updateObject(selectedObject.id, {
                     metadata: { ...selectedObject.metadata, installationPosition: e.target.value },
@@ -251,6 +286,8 @@ export const PropertiesPanel: React.FC = () => {
                 rows={3}
                 value={(selectedObject.metadata?.notes as string) || ""}
                 placeholder="Nhập ghi chú kỹ thuật, lưu ý thi công..."
+                onFocus={() => handleInputFocus("Notes")}
+                onBlur={handleInputBlur}
                 onChange={(e) =>
                   updateObject(selectedObject.id, {
                     metadata: { ...selectedObject.metadata, notes: e.target.value },
@@ -277,6 +314,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.05"
                     value={formatNumber(selectedObject.position[0])}
+                    onFocus={() => handleInputFocus("Position X")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handlePositionChange(0, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -288,6 +328,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.05"
                     value={formatNumber(selectedObject.position[1])}
+                    onFocus={() => handleInputFocus("Position Y")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handlePositionChange(1, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -299,6 +342,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.05"
                     value={formatNumber(selectedObject.position[2])}
+                    onFocus={() => handleInputFocus("Position Z")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handlePositionChange(2, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -319,6 +365,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="5"
                     value={formatNumber((selectedObject.rotation[0] * 180) / Math.PI, 0)}
+                    onFocus={() => handleInputFocus("Rotation X")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleRotationChange(0, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -330,6 +379,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="5"
                     value={formatNumber((selectedObject.rotation[1] * 180) / Math.PI, 0)}
+                    onFocus={() => handleInputFocus("Rotation Y")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleRotationChange(1, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -341,6 +393,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="5"
                     value={formatNumber((selectedObject.rotation[2] * 180) / Math.PI, 0)}
+                    onFocus={() => handleInputFocus("Rotation Z")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleRotationChange(2, parseFloat(e.target.value) || 0)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -361,6 +416,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.1"
                     value={formatNumber(selectedObject.scale[0])}
+                    onFocus={() => handleInputFocus("Scale X")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleScaleChange(0, parseFloat(e.target.value) || 1)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -372,6 +430,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.1"
                     value={formatNumber(selectedObject.scale[1])}
+                    onFocus={() => handleInputFocus("Scale Y")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleScaleChange(1, parseFloat(e.target.value) || 1)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -383,6 +444,9 @@ export const PropertiesPanel: React.FC = () => {
                     type="number"
                     step="0.1"
                     value={formatNumber(selectedObject.scale[2])}
+                    onFocus={() => handleInputFocus("Scale Z")}
+                    onBlur={handleInputBlur}
+                    onKeyDown={handleInputKeyDown}
                     onChange={(e) => handleScaleChange(2, parseFloat(e.target.value) || 1)}
                     className="w-full bg-surface-2 border border-border/80 rounded-md pl-6 pr-1.5 py-1 text-xs text-text-primary focus:border-primary focus:outline-none"
                   />
@@ -397,6 +461,9 @@ export const PropertiesPanel: React.FC = () => {
                 type="number"
                 step="0.1"
                 value={formatNumber(selectedObject.position[1])}
+                onFocus={() => handleInputFocus("Mounting Height")}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
                 onChange={(e) => handlePositionChange(1, parseFloat(e.target.value) || 0)}
                 className="w-full bg-surface-2 border border-border/80 rounded-md px-2.5 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none font-mono"
               />
@@ -412,6 +479,9 @@ export const PropertiesPanel: React.FC = () => {
               <input
                 type="text"
                 value={(selectedObject.metadata?.resolution as string) || "4K UHD (3840x2160)"}
+                onFocus={() => handleInputFocus("Resolution")}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
                 onChange={(e) =>
                   updateObject(selectedObject.id, {
                     metadata: { ...selectedObject.metadata, resolution: e.target.value },
@@ -427,6 +497,9 @@ export const PropertiesPanel: React.FC = () => {
                 <input
                   type="text"
                   value={(selectedObject.metadata?.power as string) || "120W"}
+                  onFocus={() => handleInputFocus("Power")}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleInputKeyDown}
                   onChange={(e) =>
                     updateObject(selectedObject.id, {
                       metadata: { ...selectedObject.metadata, power: e.target.value },
@@ -441,6 +514,9 @@ export const PropertiesPanel: React.FC = () => {
                 <input
                   type="text"
                   value={(selectedObject.metadata?.ipAddress as string) || "192.168.10.100"}
+                  onFocus={() => handleInputFocus("IP Address")}
+                  onBlur={handleInputBlur}
+                  onKeyDown={handleInputKeyDown}
                   onChange={(e) =>
                     updateObject(selectedObject.id, {
                       metadata: { ...selectedObject.metadata, ipAddress: e.target.value },
@@ -460,6 +536,9 @@ export const PropertiesPanel: React.FC = () => {
                     ? (selectedObject.metadata?.connections as string[]).join(", ")
                     : "HDMI 2.0, LAN RJ45, Dante Audio"
                 }
+                onFocus={() => handleInputFocus("Connections")}
+                onBlur={handleInputBlur}
+                onKeyDown={handleInputKeyDown}
                 onChange={(e) =>
                   updateObject(selectedObject.id, {
                     metadata: {
