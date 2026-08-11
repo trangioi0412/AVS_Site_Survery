@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useCallback, useState } from "react";
+import React, { useRef, useCallback, useState, useEffect } from "react";
 import { ThreeEvent } from "@react-three/fiber";
 import { TransformControls } from "@react-three/drei";
 import { SceneObject } from "@/types/editor";
@@ -68,6 +68,17 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
   const [isHovered, setIsHovered] = useState(false);
   const isSelected = selectedObjectId === object.id;
   const groupRef = useRef<any>(null);
+  const isDraggingRef = useRef(false);
+
+  // Cleanup interaction on unmount or when controls hide
+  useEffect(() => {
+    return () => {
+      if (isDraggingRef.current) {
+        isDraggingRef.current = false;
+        commitHistoryTransaction();
+      }
+    };
+  }, [commitHistoryTransaction]);
 
   const handleClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
@@ -175,10 +186,14 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
         translationSnap={snapEnabled ? gridSize : undefined}
         rotationSnap={snapEnabled ? Math.PI / 12 : undefined}
         onMouseDown={() => {
+          isDraggingRef.current = true;
           beginHistoryTransaction(`${labelPrefix} object: ${object.name}`);
         }}
         onMouseUp={() => {
-          commitHistoryTransaction();
+          if (isDraggingRef.current) {
+            isDraggingRef.current = false;
+            commitHistoryTransaction();
+          }
         }}
         onObjectChange={() => {
           if (groupRef.current) {

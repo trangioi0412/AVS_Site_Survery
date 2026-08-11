@@ -276,18 +276,22 @@ export const useEditorStore = create<EditorState>()(
       selectObject: (id) => set({ selectedObjectId: id }),
 
       beginHistoryTransaction: (label) => {
-        const { activeHistoryTransaction, objects, currentRoom, isDirty } = get();
-        if (activeHistoryTransaction) {
-          const currentSnap = createSnapshot(objects, currentRoom.dimensions);
-          if (!isSnapshotEqual(activeHistoryTransaction.before, currentSnap)) {
+        const currentActive = get().activeHistoryTransaction;
+        if (currentActive) {
+          const currentSnap = createSnapshot(get().objects, get().currentRoom.dimensions);
+          if (!isSnapshotEqual(currentActive.before, currentSnap)) {
             get().commitHistoryTransaction();
+          } else {
+            get().cancelHistoryTransaction({ restore: false });
           }
         }
+
+        const currentState = get();
         set({
           activeHistoryTransaction: {
             label,
-            before: createSnapshot(get().objects, get().currentRoom.dimensions),
-            wasDirty: isDirty,
+            before: createSnapshot(currentState.objects, currentState.currentRoom.dimensions),
+            wasDirty: currentState.isDirty,
           },
         });
       },
@@ -323,20 +327,41 @@ export const useEditorStore = create<EditorState>()(
       },
 
       cancelHistoryTransaction: (options) => {
-        const { activeHistoryTransaction, currentRoom } = get();
+        const {
+          activeHistoryTransaction,
+          currentRoom,
+          currentProject,
+          rooms,
+          selectedObjectId,
+        } = get();
+
         if (!activeHistoryTransaction) return;
 
         if (options?.restore) {
           const restoredObjects = deepClone(activeHistoryTransaction.before.objects);
-          const restoredDims = activeHistoryTransaction.before.dimensions;
+          const restoredDims = deepClone(activeHistoryTransaction.before.dimensions);
           const updatedRoom: RoomInfo = {
             ...currentRoom,
             dimensions: restoredDims,
             sceneObjects: deepClone(restoredObjects),
+            updatedAt: new Date().toISOString(),
           };
+
+          const projectRooms = rooms[currentProject.id] || [];
+          const updatedRoomsMap = {
+            ...rooms,
+            [currentProject.id]: projectRooms.map((r) =>
+              r.id === currentRoom.id ? updatedRoom : r
+            ),
+          };
+
+          const isSelectedStillValid = restoredObjects.some((o) => o.id === selectedObjectId);
+
           set({
             objects: restoredObjects,
             currentRoom: updatedRoom,
+            rooms: updatedRoomsMap,
+            selectedObjectId: isSelectedStillValid ? selectedObjectId : null,
             isDirty: activeHistoryTransaction.wasDirty,
             activeHistoryTransaction: null,
           });

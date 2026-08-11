@@ -335,4 +335,146 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       expect(state.historyIndex).toBe(state.history.length - 1);
     });
   });
+
+  // --- 7. TASK-003A.01 HARDENING TESTS ---
+  describe("7. TASK-003A.01 Hardening & Edge Cases", () => {
+    it("7.1. Nested transaction capture isDirty from fresh state after committing previous transaction", () => {
+      const store = useEditorStore.getState();
+      expect(store.isDirty).toBe(false);
+
+      const targetObj = store.objects[0];
+
+      // Begin Transaction A when isDirty = false
+      store.beginHistoryTransaction("Transaction A");
+      store.updateObject(targetObj.id, { position: [5, 5, 5] });
+
+      // Begin Transaction B -> should commit A and set isDirty = true
+      store.beginHistoryTransaction("Transaction B");
+
+      let state = useEditorStore.getState();
+      expect(state.history.length).toBe(2);
+      expect(state.isDirty).toBe(true);
+      expect(state.activeHistoryTransaction?.wasDirty).toBe(true);
+
+      // Make change in B and cancel with restore
+      store.updateObject(targetObj.id, { position: [10, 10, 10] });
+      store.cancelHistoryTransaction({ restore: true });
+
+      state = useEditorStore.getState();
+      expect(state.objects.find((o) => o.id === targetObj.id)?.position).toEqual([5, 5, 5]);
+      expect(state.isDirty).toBe(true); // isDirty must NOT be reset to false!
+    });
+
+    it("7.2. Cancel history transaction with restore synchronizes rooms map", () => {
+      const store = useEditorStore.getState();
+      const targetObj = store.objects[0];
+      const initialPos = [...targetObj.position];
+
+      store.beginHistoryTransaction("Trans to cancel");
+      store.updateObject(targetObj.id, { position: [100, 100, 100] });
+
+      store.cancelHistoryTransaction({ restore: true });
+
+      const state = useEditorStore.getState();
+      const currentProjId = state.currentProject.id;
+      const currentRoomId = state.currentRoom.id;
+
+      const roomInMap = state.rooms[currentProjId].find((r) => r.id === currentRoomId);
+      expect(roomInMap).toBeDefined();
+
+      const objInRoomMap = roomInMap?.sceneObjects?.find((o) => o.id === targetObj.id);
+      expect(objInRoomMap?.position).toEqual(initialPos);
+      expect(state.objects.find((o) => o.id === targetObj.id)?.position).toEqual(initialPos);
+    });
+
+    it("7.3. No-op action after Undo does NOT erase the Redo branch", () => {
+      const store = useEditorStore.getState();
+
+      store.addObject({
+        id: "step-1",
+        name: "Step 1",
+        type: "Test",
+        category: "other",
+        status: "proposed",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        locked: false,
+      });
+
+      store.addObject({
+        id: "step-2",
+        name: "Step 2",
+        type: "Test",
+        category: "other",
+        status: "proposed",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        locked: false,
+      });
+
+      expect(useEditorStore.getState().history.length).toBe(3);
+
+      // Undo back to Step 1
+      store.undo();
+      expect(useEditorStore.getState().historyIndex).toBe(1);
+
+      // Perform a no-op transaction
+      store.beginHistoryTransaction("No-op");
+      store.commitHistoryTransaction();
+
+      // Redo branch should remain intact!
+      const state = useEditorStore.getState();
+      expect(state.history.length).toBe(3);
+      expect(state.historyIndex).toBe(1);
+
+      // Redo to Step 2 should succeed
+      store.redo();
+      expect(useEditorStore.getState().objects.some((o) => o.id === "step-2")).toBe(true);
+    });
+
+    it("7.4. Selection safety: Undo resets selection when object vanishes, preserves selection when object exists", () => {
+      const store = useEditorStore.getState();
+      const firstObj = store.objects[0];
+
+      // Select firstObj and update its status
+      store.selectObject(firstObj.id);
+      expect(useEditorStore.getState().selectedObjectId).toBe(firstObj.id);
+
+      store.updateObjectWithHistory(firstObj.id, { status: "proposed" }, "Update status");
+      expect(useEditorStore.getState().selectedObjectId).toBe(firstObj.id);
+
+      // Undo status change -> firstObj still exists -> selection preserved!
+      store.undo();
+      expect(useEditorStore.getState().selectedObjectId).toBe(firstObj.id);
+
+      // Redo status change -> firstObj still exists -> selection preserved!
+      store.redo();
+      expect(useEditorStore.getState().selectedObjectId).toBe(firstObj.id);
+
+      // Now add a temporary object and select it
+      const tempObj: SceneObject = {
+        id: "temp-selected-1",
+        name: "Temp Selected",
+        type: "Test",
+        category: "other",
+        status: "proposed",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        locked: false,
+      };
+
+      store.addObject(tempObj);
+      expect(useEditorStore.getState().selectedObjectId).toBe("temp-selected-1");
+
+      // Undo add -> temp-selected-1 disappears -> selection reset to null!
+      store.undo();
+      expect(useEditorStore.getState().selectedObjectId).toBeNull();
+    });
+  });
 });

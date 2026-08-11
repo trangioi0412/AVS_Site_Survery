@@ -6,7 +6,8 @@
 - **TASK-002**: App Shell, Routing & Management Pages (✅ Completed & Verified)
 - **TASK-002B**: Navigation, Editor Route & Scene Switching Integration Audit (✅ Completed & Verified)
 - **TASK-002D**: Unified Sidebar, Project/Room Context Navigation, Dynamic Route Resolution & Workflow Integration (✅ Completed & Verified)
-- **TASK-003A**: Transactional Undo/Redo Foundation (⏳ Pending browser verification)
+- **TASK-003A**: Transactional Undo/Redo Foundation (✅ Completed & Verified by User)
+- **TASK-003A.01**: Transactional Undo/Redo Hardening (⏳ Pending browser verification)
 - **TASK-003B**: Measurement Tool
 - **TASK-003C**: Annotation Tool
 - **TASK-003D**: Editor Tools & Integration Hardening
@@ -142,7 +143,7 @@
 
 ## TASK-003A — Transactional Undo/Redo Foundation
 
-* **Trạng thái**: ⏳ Pending browser verification
+* **Trạng thái**: ✅ PASS — Người dùng đã xác nhận kiểm thử trình duyệt
 * **Nguyên nhân gốc**:
   * Prior history chỉ lưu `SceneObject[][]`, thiếu `dimensions` và metadata thao tác.
   * Chỉ `addObject` và `removeObject` ghi history snapshot; `updateObject`, `toggleVisibility`, `toggleLock`, `updateRoomDimensions` không có history.
@@ -168,4 +169,23 @@
   * `npm run build`: Pass 100% (13 static/dynamic routes generated).
   * `git diff --check`: Pass 100%.
 
+---
 
+## TASK-003A.01 — Transactional Undo/Redo Hardening
+
+* **Trạng thái**: ⏳ Pending browser verification
+* **Nguyên nhân hotfix**:
+  * `TransformControls` khi mất khả dụng đột ngột (deselection, lock, unmount, scene switch) có thể để transaction bị treo trong store.
+  * Nested transaction trong `beginHistoryTransaction` capture giá trị `isDirty` từ biến đã lưu trước khi `commitHistoryTransaction` chạy, làm sai trạng thái `wasDirty`.
+  * `cancelHistoryTransaction({ restore: true })` chưa đồng bộ lại Room tương ứng trong `rooms[currentProject.id]`.
+* **Các điểm gia cố**:
+  * **TransformControls Cleanup**: Sử dụng `isDraggingRef` kết hợp `useEffect` cleanup trong `scene-object-item.tsx`, đảm bảo interaction kết thúc hoặc unmount luôn đóng transaction mượt mà và idempotent.
+  * **Fresh State & isDirty**: Sửa `beginHistoryTransaction` trong `editor-store.ts` để commit/cancel transaction cũ trước, sau đó đọc lại `isDirty` mới nhất từ `get()`.
+  * **Room Map Sync**: Sửa `cancelHistoryTransaction({ restore: true })` đồng bộ đầy đủ `rooms[currentProject.id]` và validate lại `selectedObjectId`.
+  * **No-Op Redo Safety**: Đảm bảo no-op action sau Undo không xóa redo branch.
+* **Kết quả kiểm thử thực tế**:
+  * `npm run lint`: Pass 100% (0 errors, 0 warnings).
+  * `npm test`: Pass 100% (45/45 Vitest tests passed trong 6 test files).
+  * `npx tsc --noEmit`: Pass 100% (0 errors).
+  * `npm run build`: Pass 100% (13 static/dynamic routes generated).
+  * `git diff --check`: Pass 100%.

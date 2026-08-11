@@ -19,7 +19,8 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 - **HOTFIX TASK-002D.1** (✅ **HOÀN THÀNH**): Fix lỗi tiêu đề bảng Hạ tầng khảo sát (`InfrastructureTable`) bị chồng chữ khi cuộn (Hotfix cục bộ, giữ nguyên App Shell, Scene, Store, persistence & routing).
 
 ### Phase 3: History & Tools
-- **TASK-003A** (⏳ **PENDING BROWSER VERIFICATION**): Transactional Undo/Redo Foundation (Snapshot, Transaction lifecycle, Limits & Safety).
+- **TASK-003A** (✅ **HOÀN THÀNH & NGHIỆM THU**): Transactional Undo/Redo Foundation (Snapshot, Transaction lifecycle, Limits & Safety).
+- **TASK-003A.01** (⏳ **PENDING BROWSER VERIFICATION**): Transactional Undo/Redo Hardening (TransformControls cleanup, stale isDirty fix & Room map sync).
 - **TASK-003B** (🔄 **TIẾP THEO**): Measurement Tool (Đo khoảng cách & diện tích).
 - **TASK-003C**: Annotation Tool (Ghi chú vị trí 3D).
 - **TASK-003D**: Editor Tools & Integration Hardening (Fit View, Hotkeys Q/W/E/R/M/N/Delete).
@@ -40,5 +41,6 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 - **TASK-002 & TASK-002B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Single Source of Truth, Clean Nav, Pass 100% Lint/Build/Tests).
 - **TASK-002C**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Fix Hydration Loading Deadlock, Pass 13/13 Vitest tests & Build 100%).
 - **TASK-002D & HOTFIX TASK-002D.1**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Unified Sidebar, Sticky Table Header fixed, 26/26 Tests pass, Build 100%).
-- **TASK-003A**: ⏳ **ĐÃ HOÀN THÀNH CODE & AUTOMATED TESTS — PENDING BROWSER VERIFICATION** (Transactional Undo/Redo Foundation, 41/41 Tests pass, Build 100%).
+- **TASK-003A**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Transactional Undo/Redo Foundation, Verified by User).
+- **TASK-003A.01**: ⏳ **ĐÃ HOÀN THÀNH CODE & AUTOMATED TESTS — PENDING BROWSER VERIFICATION** (Transactional Undo/Redo Hardening, 45/45 Tests pass, Build 100%).
 - **TASK-003B**: 🔄 Sẵn sàng triển khai (⏳ **TIẾP THEO**).
