@@ -20,7 +20,7 @@ export const InfrastructureTable: React.FC = () => {
   return (
     <div className="flex flex-col h-full bg-surface-1 overflow-hidden select-none text-xs">
       {/* Header & Filter Tabs */}
-      <div className="p-2 border-b border-border/80 flex items-center justify-between">
+      <div className="p-2 border-b border-border/80 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-1.5 font-bold text-text-primary uppercase tracking-wider text-[11px]">
           <HardDrive className="w-3.5 h-3.5 text-primary" />
           <span>Hạ Tầng Khảo Sát (Existing Infrastructure)</span>
@@ -68,15 +68,15 @@ export const InfrastructureTable: React.FC = () => {
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-surface-2/80 text-[10px] text-text-secondary uppercase sticky top-0 z-10 border-b border-border/60">
+          <thead className="text-[10px] text-text-secondary uppercase">
             <tr>
-              <th className="py-1.5 px-3 font-semibold">Loại</th>
-              <th className="py-1.5 px-3 font-semibold">Tên / Mã</th>
-              <th className="py-1.5 px-3 font-semibold">Vị trí</th>
-              <th className="py-1.5 px-3 font-semibold">Mô tả chi tiết</th>
-              <th className="py-1.5 px-3 font-semibold text-right">Trạng thái</th>
+              <th className="py-1.5 px-3 font-semibold sticky top-0 z-10 bg-surface-2 border-b border-border/60">Loại</th>
+              <th className="py-1.5 px-3 font-semibold sticky top-0 z-10 bg-surface-2 border-b border-border/60">Tên / Mã</th>
+              <th className="py-1.5 px-3 font-semibold sticky top-0 z-10 bg-surface-2 border-b border-border/60">Vị trí</th>
+              <th className="py-1.5 px-3 font-semibold sticky top-0 z-10 bg-surface-2 border-b border-border/60">Mô tả chi tiết</th>
+              <th className="py-1.5 px-3 font-semibold text-right sticky top-0 z-10 bg-surface-2 border-b border-border/60">Trạng thái</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border/40 text-[11px]">
