@@ -16,6 +16,7 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 - **TASK-002B** (✅ **HOÀN THÀNH**): Navigation, Editor Route & Scene Switching Integration Audit.
 - **TASK-002C** (✅ **HOÀN THÀNH**): Fix Editor bị kẹt vô hạn tại màn hình Loading.
 - **TASK-002D** (✅ **HOÀN THÀNH**): Unified Sidebar, Project/Room Context Navigation, Dynamic Route Resolution & Workflow Integration.
+- **HOTFIX TASK-002D.1** (✅ **HOÀN THÀNH**): Fix lỗi tiêu đề bảng Hạ tầng khảo sát (`InfrastructureTable`) bị chồng chữ khi cuộn (Hotfix cục bộ, giữ nguyên App Shell, Scene, Store, persistence & routing).
 
 ### Phase 3: History & Tools
 - **TASK-003** (⏳ **TIẾP THEO**): Undo/Redo, Measurement, Annotation & Editor tools.
@@ -35,5 +36,5 @@ Xây dựng ứng dụng web 3D Editor & Lập kế hoạch thiết kế hệ th
 - **TASK-001 & TASK-001B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Automated Tests pass, CI ready, Build pass 100%).
 - **TASK-002 & TASK-002B**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Single Source of Truth, Clean Nav, Pass 100% Lint/Build/Tests).
 - **TASK-002C**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Fix Hydration Loading Deadlock, Pass 13/13 Vitest tests & Build 100%).
-- **TASK-002D**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Unified Sidebar, Project/Room Context Navigation, 26/26 Tests pass, Build 100%).
-- **TASK-003**: 🔄 Sẵn sàng triển khai.
+- **TASK-002D & HOTFIX TASK-002D.1**: ✅ **HOÀN THÀNH & NGHIỆM THU** (Unified Sidebar, Sticky Table Header fixed, 26/26 Tests pass, Build 100%).
+- **TASK-003**: 🔄 Sẵn sàng triển khai (⏳ **TIẾP THEO**).

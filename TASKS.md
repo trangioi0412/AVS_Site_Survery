@@ -112,3 +112,26 @@
    - `npx tsc --noEmit`: Pass 100% (0 errors).
    - `npm run lint`: Pass 100% (0 warnings, 0 errors).
    - `npm run build`: Build thành công 100% (13 static/dynamic routes generated).
+
+---
+
+### HOTFIX TASK-002D.1 — Infrastructure Table Sticky Header
+
+* **Trạng thái**: ✅ Complete (Nghiệm thu thành công)
+* **Nguyên nhân gốc**:
+  * Header dùng nền bán trong suốt (`bg-surface-2/80`).
+  * Sticky đặt trên `<thead>`.
+  * Scroll container thiếu ràng buộc flex cần thiết (`shrink-0`, `min-h-0`, `relative`).
+* **Cách sửa**:
+  * Thêm `shrink-0` cho header/filter.
+  * Thêm `relative`, `min-h-0` và `overscroll-contain` cho scroll container.
+  * Chuyển `sticky` xuống từng `<th>`.
+  * Sử dụng nền `bg-surface-2` đặc.
+* **Browser test**: PASS — người dùng đã xác nhận.
+* **Verification**:
+  * `npm run lint`: Pass 100%
+  * `npm test`: Pass 100% (26/26 Vitest tests passed)
+  * `npx tsc --noEmit`: Pass 100% (0 errors)
+  * `npm run build`: Pass 100%
+  * `git diff --check`: Pass 100%
+
