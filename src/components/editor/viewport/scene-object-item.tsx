@@ -69,13 +69,15 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
   const isSelected = selectedObjectId === object.id;
   const groupRef = useRef<any>(null);
   const isDraggingRef = useRef(false);
+  const tokenRef = useRef<string | null>(null);
 
-  // Cleanup interaction on unmount or when controls hide
+  // Cleanup interaction on unmount
   useEffect(() => {
     return () => {
       if (isDraggingRef.current) {
         isDraggingRef.current = false;
-        commitHistoryTransaction();
+        commitHistoryTransaction(tokenRef.current);
+        tokenRef.current = null;
       }
     };
   }, [commitHistoryTransaction]);
@@ -88,6 +90,22 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
     [object.id, selectObject]
   );
 
+  // Compute before early return — needed for the unconditional useEffect below
+  const isFloor = object.type === "Floor";
+  const isTransformableMode =
+    editorMode === "translate" || editorMode === "rotate" || editorMode === "scale";
+  const showTransformControls =
+    isSelected && !object.locked && isTransformableMode && !isFloor;
+
+  // Flush a hung transaction when the gizmo is hidden (deselect / mode switch while dragging)
+  useEffect(() => {
+    if (!showTransformControls && isDraggingRef.current) {
+      isDraggingRef.current = false;
+      commitHistoryTransaction(tokenRef.current);
+      tokenRef.current = null;
+    }
+  }, [showTransformControls, commitHistoryTransaction]);
+
   if (!object.visible) return null;
 
   const dim = object.dimensions || { width: 1, height: 1, depth: 1 };
@@ -96,12 +114,6 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
 
   const isArchitecture = object.category === "architecture";
   const isMetal = object.category === "rack" || object.type?.includes("Rack");
-  const isFloor = object.type === "Floor";
-
-  const isTransformableMode =
-    editorMode === "translate" || editorMode === "rotate" || editorMode === "scale";
-  const showTransformControls =
-    isSelected && !object.locked && isTransformableMode && !isFloor;
 
   const meshContent = (
     <group
@@ -187,12 +199,13 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
         rotationSnap={snapEnabled ? Math.PI / 12 : undefined}
         onMouseDown={() => {
           isDraggingRef.current = true;
-          beginHistoryTransaction(`${labelPrefix} object: ${object.name}`);
+          tokenRef.current = beginHistoryTransaction(`${labelPrefix} object: ${object.name}`);
         }}
         onMouseUp={() => {
           if (isDraggingRef.current) {
             isDraggingRef.current = false;
-            commitHistoryTransaction();
+            commitHistoryTransaction(tokenRef.current);
+            tokenRef.current = null;
           }
         }}
         onObjectChange={() => {
@@ -225,4 +238,3 @@ export const SceneObjectItem: React.FC<SceneObjectItemProps> = ({ object }) => {
 
   return meshContent;
 };
-

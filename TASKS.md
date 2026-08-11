@@ -7,7 +7,7 @@
 - **TASK-002B**: Navigation, Editor Route & Scene Switching Integration Audit (✅ Completed & Verified)
 - **TASK-002D**: Unified Sidebar, Project/Room Context Navigation, Dynamic Route Resolution & Workflow Integration (✅ Completed & Verified)
 - **TASK-003A**: Transactional Undo/Redo Foundation (✅ Completed & Verified by User)
-- **TASK-003A.01**: Transactional Undo/Redo Hardening (⏳ Pending browser verification)
+- **TASK-003A.01**: Transactional Undo/Redo Hardening — Corrective Revision (⏳ Pending browser verification)
 - **TASK-003B**: Measurement Tool
 - **TASK-003C**: Annotation Tool
 - **TASK-003D**: Editor Tools & Integration Hardening
@@ -171,21 +171,30 @@
 
 ---
 
-## TASK-003A.01 — Transactional Undo/Redo Hardening
+## TASK-003A.01 — Transactional Undo/Redo Hardening — Corrective Revision
 
 * **Trạng thái**: ⏳ Pending browser verification
-* **Nguyên nhân hotfix**:
+* **Nguyên nhân hotfix ban đầu (Pre-corrective)**:
   * `TransformControls` khi mất khả dụng đột ngột (deselection, lock, unmount, scene switch) có thể để transaction bị treo trong store.
   * Nested transaction trong `beginHistoryTransaction` capture giá trị `isDirty` từ biến đã lưu trước khi `commitHistoryTransaction` chạy, làm sai trạng thái `wasDirty`.
   * `cancelHistoryTransaction({ restore: true })` chưa đồng bộ lại Room tương ứng trong `rooms[currentProject.id]`.
-* **Các điểm gia cố**:
-  * **TransformControls Cleanup**: Sử dụng `isDraggingRef` kết hợp `useEffect` cleanup trong `scene-object-item.tsx`, đảm bảo interaction kết thúc hoặc unmount luôn đóng transaction mượt mà và idempotent.
-  * **Fresh State & isDirty**: Sửa `beginHistoryTransaction` trong `editor-store.ts` để commit/cancel transaction cũ trước, sau đó đọc lại `isDirty` mới nhất từ `get()`.
-  * **Room Map Sync**: Sửa `cancelHistoryTransaction({ restore: true })` đồng bộ đầy đủ `rooms[currentProject.id]` và validate lại `selectedObjectId`.
-  * **No-Op Redo Safety**: Đảm bảo no-op action sau Undo không xóa redo branch.
+* **Vấn đề phát hiện trong corrective review**:
+  * Transaction API không có token ownership: bất kỳ caller nào cũng có thể commit/cancel transaction của caller khác.
+  * Single-step actions như `addObject`, `removeObject` gọi `set({ activeHistoryTransaction: null })` trực tiếp thay vì resolve qua token.
+  * No-op commit chỉ set `activeHistoryTransaction: null` mà không restore `isDirty` về `wasDirty`, gây sai trạng thái dirty.
+  * `cancelHistoryTransaction({ restore: true })` tạo `updatedRoom` và sử dụng cùng object reference cho cả `currentRoom` lẫn room map entry — vi phạm reference independence.
+  * `useEffect` cleanup trong `scene-object-item.tsx` không có cơ chế phát hiện gizmo bị ẩn (deselect/mode switch khi đang drag).
+* **Các điểm gia cố corrective**:
+  * **Token Ownership**: `HistoryTransaction` thêm `id` (unique token), `projectId`, `roomId`. `beginHistoryTransaction` trả về token. `commitHistoryTransaction(token)` và `cancelHistoryTransaction(token, options)` yêu cầu token hợp lệ — mismatch bị bỏ qua.
+  * **Cross-Scene Safety**: `commitHistoryTransaction` kiểm tra `projectId`/`roomId` trước khi chấp nhận, loại bỏ cross-scene stale cleanup.
+  * **No-op isDirty Fix**: Cả commit và cancel đều restore `isDirty = activeHistoryTransaction.wasDirty` khi no-op, không còn reset sai.
+  * **Reference Independence**: `cancelHistoryTransaction({ restore: true })` tạo 2 clone độc lập: một cho `currentRoom.sceneObjects`, một cho room map entry.
+  * **showTransformControls Cleanup Effect**: Thêm `useEffect` thứ hai theo dõi `showTransformControls` — khi gizmo bị ẩn (deselect hoặc mode switch khi đang drag), transaction được commit với đúng token.
+  * **PropertiesPanel**: Thêm `txnTokenRef` để lưu token giữa `handleInputFocus` và `handleInputBlur`.
+  * **Token Tests**: Mở rộng test suite lên 23 tests (thêm 7.5 → 7.8 kiểm tra stale token, no-op isDirty, token uniqueness).
 * **Kết quả kiểm thử thực tế**:
   * `npm run lint`: Pass 100% (0 errors, 0 warnings).
-  * `npm test`: Pass 100% (45/45 Vitest tests passed trong 6 test files).
+  * `npm test`: Pass 100% (49/49 Vitest tests passed trong 6 test files).
   * `npx tsc --noEmit`: Pass 100% (0 errors).
   * `npm run build`: Pass 100% (13 static/dynamic routes generated).
   * `git diff --check`: Pass 100%.

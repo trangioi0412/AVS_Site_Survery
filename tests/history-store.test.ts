@@ -147,11 +147,11 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       const store = useEditorStore.getState();
       const targetObj = store.objects[0];
 
-      store.beginHistoryTransaction(`Move object: ${targetObj.name}`);
+      const token = store.beginHistoryTransaction(`Move object: ${targetObj.name}`);
       store.updateObject(targetObj.id, { position: [1, 0, 0] });
       store.updateObject(targetObj.id, { position: [2, 0, 0] });
       store.updateObject(targetObj.id, { position: [3, 0, 0] });
-      store.commitHistoryTransaction();
+      store.commitHistoryTransaction(token);
 
       const state = useEditorStore.getState();
       expect(state.history.length).toBe(2);
@@ -167,9 +167,9 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       const store = useEditorStore.getState();
       const targetObj = store.objects[0];
 
-      store.beginHistoryTransaction("No-op Transaction");
+      const token = store.beginHistoryTransaction("No-op Transaction");
       store.updateObject(targetObj.id, { name: targetObj.name });
-      store.commitHistoryTransaction();
+      store.commitHistoryTransaction(token);
 
       expect(useEditorStore.getState().history.length).toBe(1);
     });
@@ -179,9 +179,9 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       const targetObj = store.objects[0];
       const initialPos = [...targetObj.position];
 
-      store.beginHistoryTransaction("Cancelled Drag");
+      const token = store.beginHistoryTransaction("Cancelled Drag");
       store.updateObject(targetObj.id, { position: [99, 99, 99] });
-      store.cancelHistoryTransaction({ restore: true });
+      store.cancelHistoryTransaction(token, { restore: true });
 
       const state = useEditorStore.getState();
       expect(state.history.length).toBe(1);
@@ -338,7 +338,7 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
 
   // --- 7. TASK-003A.01 HARDENING TESTS ---
   describe("7. TASK-003A.01 Hardening & Edge Cases", () => {
-    it("7.1. Nested transaction capture isDirty from fresh state after committing previous transaction", () => {
+    it("7.1. Nested transaction captures isDirty from fresh state after committing previous transaction", () => {
       const store = useEditorStore.getState();
       expect(store.isDirty).toBe(false);
 
@@ -349,7 +349,7 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       store.updateObject(targetObj.id, { position: [5, 5, 5] });
 
       // Begin Transaction B -> should commit A and set isDirty = true
-      store.beginHistoryTransaction("Transaction B");
+      const tokenB = store.beginHistoryTransaction("Transaction B");
 
       let state = useEditorStore.getState();
       expect(state.history.length).toBe(2);
@@ -358,22 +358,22 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
 
       // Make change in B and cancel with restore
       store.updateObject(targetObj.id, { position: [10, 10, 10] });
-      store.cancelHistoryTransaction({ restore: true });
+      store.cancelHistoryTransaction(tokenB, { restore: true });
 
       state = useEditorStore.getState();
       expect(state.objects.find((o) => o.id === targetObj.id)?.position).toEqual([5, 5, 5]);
       expect(state.isDirty).toBe(true); // isDirty must NOT be reset to false!
     });
 
-    it("7.2. Cancel history transaction with restore synchronizes rooms map", () => {
+    it("7.2. Cancel history transaction with restore synchronizes rooms map independently", () => {
       const store = useEditorStore.getState();
       const targetObj = store.objects[0];
       const initialPos = [...targetObj.position];
 
-      store.beginHistoryTransaction("Trans to cancel");
+      const token = store.beginHistoryTransaction("Trans to cancel");
       store.updateObject(targetObj.id, { position: [100, 100, 100] });
 
-      store.cancelHistoryTransaction({ restore: true });
+      store.cancelHistoryTransaction(token, { restore: true });
 
       const state = useEditorStore.getState();
       const currentProjId = state.currentProject.id;
@@ -385,6 +385,16 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       const objInRoomMap = roomInMap?.sceneObjects?.find((o) => o.id === targetObj.id);
       expect(objInRoomMap?.position).toEqual(initialPos);
       expect(state.objects.find((o) => o.id === targetObj.id)?.position).toEqual(initialPos);
+
+      // Reference independence: mutating room map entry must NOT affect state.objects
+      if (roomInMap?.sceneObjects) {
+        const roomObj = roomInMap.sceneObjects.find((o) => o.id === targetObj.id);
+        if (roomObj) {
+          roomObj.position = [999, 999, 999];
+        }
+      }
+      const stateAfter = useEditorStore.getState();
+      expect(stateAfter.objects.find((o) => o.id === targetObj.id)?.position).toEqual(initialPos);
     });
 
     it("7.3. No-op action after Undo does NOT erase the Redo branch", () => {
@@ -423,8 +433,8 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       expect(useEditorStore.getState().historyIndex).toBe(1);
 
       // Perform a no-op transaction
-      store.beginHistoryTransaction("No-op");
-      store.commitHistoryTransaction();
+      const token = store.beginHistoryTransaction("No-op");
+      store.commitHistoryTransaction(token);
 
       // Redo branch should remain intact!
       const state = useEditorStore.getState();
@@ -475,6 +485,100 @@ describe("TASK-003A — Transactional Undo/Redo Foundation Tests", () => {
       // Undo add -> temp-selected-1 disappears -> selection reset to null!
       store.undo();
       expect(useEditorStore.getState().selectedObjectId).toBeNull();
+    });
+
+    // --- 7.5. Token Ownership Tests ---
+    it("7.5. Stale token commit is ignored: only the current token can commit", () => {
+      const store = useEditorStore.getState();
+      const targetObj = store.objects[0];
+
+      const staleToken = store.beginHistoryTransaction("Stale Transaction");
+      store.updateObject(targetObj.id, { position: [5, 5, 5] });
+
+      // Begin a second transaction — this commits the first and generates a new token
+      const freshToken = store.beginHistoryTransaction("Fresh Transaction");
+      store.updateObject(targetObj.id, { position: [7, 7, 7] });
+
+      // Stale token commit must be ignored
+      store.commitHistoryTransaction(staleToken);
+
+      const stateAfterStale = useEditorStore.getState();
+      // Transaction should still be active (not committed by stale token)
+      expect(stateAfterStale.activeHistoryTransaction).not.toBeNull();
+      expect(stateAfterStale.activeHistoryTransaction?.id).toBe(freshToken);
+
+      // Now commit with the correct fresh token
+      store.commitHistoryTransaction(freshToken);
+      const stateAfterFresh = useEditorStore.getState();
+      expect(stateAfterFresh.activeHistoryTransaction).toBeNull();
+    });
+
+    it("7.6. Stale token cancel is ignored", () => {
+      const store = useEditorStore.getState();
+      const targetObj = store.objects[0];
+
+      const staleToken = store.beginHistoryTransaction("Stale Cancel Transaction");
+      store.updateObject(targetObj.id, { position: [5, 5, 5] });
+
+      const freshToken = store.beginHistoryTransaction("Fresh Cancel Transaction");
+      store.updateObject(targetObj.id, { position: [8, 8, 8] });
+
+      // Cancel with stale token must be ignored
+      store.cancelHistoryTransaction(staleToken, { restore: true });
+
+      const stateAfterStale = useEditorStore.getState();
+      // Transaction should still be active (not cancelled by stale token)
+      expect(stateAfterStale.activeHistoryTransaction).not.toBeNull();
+      expect(stateAfterStale.activeHistoryTransaction?.id).toBe(freshToken);
+
+      // Now cancel with correct fresh token
+      store.cancelHistoryTransaction(freshToken, { restore: true });
+      expect(useEditorStore.getState().activeHistoryTransaction).toBeNull();
+    });
+
+    it("7.7. No-op commit restores isDirty to wasDirty (does not leave dirty=false when was true)", () => {
+      const store = useEditorStore.getState();
+      const targetObj = store.objects[0];
+
+      // First make the store dirty
+      store.addObject({
+        id: "dirty-maker",
+        name: "Dirty Maker",
+        type: "Test",
+        category: "other",
+        status: "proposed",
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        scale: [1, 1, 1],
+        visible: true,
+        locked: false,
+      });
+      expect(useEditorStore.getState().isDirty).toBe(true);
+
+      // Begin a no-op transaction (no changes)
+      const token = useEditorStore.getState().beginHistoryTransaction("No-op dirty test");
+      // Commit without making any changes
+      useEditorStore.getState().commitHistoryTransaction(token);
+
+      // isDirty must remain true (restored from wasDirty)
+      expect(useEditorStore.getState().isDirty).toBe(true);
+    });
+
+    it("7.8. beginHistoryTransaction returns a unique non-null string token", () => {
+      const store = useEditorStore.getState();
+      const token1 = store.beginHistoryTransaction("Token Test 1");
+      expect(typeof token1).toBe("string");
+      expect(token1).not.toBeNull();
+
+      // Cancel it to avoid interference
+      store.cancelHistoryTransaction(token1, { restore: false });
+
+      const token2 = store.beginHistoryTransaction("Token Test 2");
+      expect(typeof token2).toBe("string");
+      expect(token2).not.toBeNull();
+      expect(token2).not.toBe(token1);
+
+      store.cancelHistoryTransaction(token2, { restore: false });
     });
   });
 });

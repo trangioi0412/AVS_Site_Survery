@@ -114,9 +114,9 @@ interface EditorState {
   toggleHelpers: () => void;
   toggleSidebar: () => void;
 
-  beginHistoryTransaction: (label: string) => void;
-  commitHistoryTransaction: () => void;
-  cancelHistoryTransaction: (options?: { restore?: boolean }) => void;
+  beginHistoryTransaction: (label: string) => string | null;
+  commitHistoryTransaction: (token: string | null) => void;
+  cancelHistoryTransaction: (token: string | null, options?: { restore?: boolean }) => void;
 
   createProject: (data: { name: string; customer?: string; location?: string }) => void;
   addRoomToProject: (
@@ -276,33 +276,85 @@ export const useEditorStore = create<EditorState>()(
       selectObject: (id) => set({ selectedObjectId: id }),
 
       beginHistoryTransaction: (label) => {
-        const currentActive = get().activeHistoryTransaction;
+        const state = get();
+        const currentActive = state.activeHistoryTransaction;
+
         if (currentActive) {
-          const currentSnap = createSnapshot(get().objects, get().currentRoom.dimensions);
-          if (!isSnapshotEqual(currentActive.before, currentSnap)) {
-            get().commitHistoryTransaction();
+          // Validate token matches current Scene before resolving
+          const isSameScene =
+            currentActive.projectId === state.currentProject.id &&
+            currentActive.roomId === state.currentRoom.id;
+
+          if (isSameScene) {
+            const currentSnap = createSnapshot(state.objects, state.currentRoom.dimensions);
+            if (!isSnapshotEqual(currentActive.before, currentSnap)) {
+              // Changed: commit as its own entry
+              const { history, historyIndex } = get();
+              let newHistory = history.slice(0, historyIndex + 1);
+              newHistory.push({
+                id: `hist-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                label: currentActive.label,
+                timestamp: Date.now(),
+                snapshot: currentSnap,
+              });
+              if (newHistory.length > MAX_HISTORY_ENTRIES) {
+                newHistory = newHistory.slice(newHistory.length - MAX_HISTORY_ENTRIES);
+              }
+              set({
+                history: newHistory,
+                historyIndex: newHistory.length - 1,
+                activeHistoryTransaction: null,
+                isDirty: true,
+              });
+            } else {
+              // No-op: restore wasDirty, discard without entry
+              set({
+                activeHistoryTransaction: null,
+                isDirty: currentActive.wasDirty,
+              });
+            }
           } else {
-            get().cancelHistoryTransaction({ restore: false });
+            // Cross-Scene stale transaction: discard silently
+            set({ activeHistoryTransaction: null });
           }
         }
 
-        const currentState = get();
-        set({
-          activeHistoryTransaction: {
-            label,
-            before: createSnapshot(currentState.objects, currentState.currentRoom.dimensions),
-            wasDirty: currentState.isDirty,
-          },
-        });
+        // Read fresh state after resolving previous transaction
+        const freshState = get();
+        const newId = `txn-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        const newTransaction: import("@/types/editor").HistoryTransaction = {
+          id: newId,
+          label,
+          before: createSnapshot(freshState.objects, freshState.currentRoom.dimensions),
+          wasDirty: freshState.isDirty,
+          projectId: freshState.currentProject.id,
+          roomId: freshState.currentRoom.id,
+        };
+        set({ activeHistoryTransaction: newTransaction });
+        return newId;
       },
 
-      commitHistoryTransaction: () => {
+      commitHistoryTransaction: (token) => {
         const { activeHistoryTransaction, objects, currentRoom, history, historyIndex } = get();
         if (!activeHistoryTransaction) return;
+        // Token mismatch: no-op — stale cleanup, different transaction
+        if (token !== activeHistoryTransaction.id) return;
+        // Scene mismatch: discard silently
+        if (
+          activeHistoryTransaction.projectId !== get().currentProject.id ||
+          activeHistoryTransaction.roomId !== get().currentRoom.id
+        ) {
+          set({ activeHistoryTransaction: null });
+          return;
+        }
 
         const currentSnap = createSnapshot(objects, currentRoom.dimensions);
         if (isSnapshotEqual(activeHistoryTransaction.before, currentSnap)) {
-          set({ activeHistoryTransaction: null });
+          // No-op: restore wasDirty, don't add entry, don't touch redo branch
+          set({
+            activeHistoryTransaction: null,
+            isDirty: activeHistoryTransaction.wasDirty,
+          });
           return;
         }
 
@@ -326,7 +378,7 @@ export const useEditorStore = create<EditorState>()(
         });
       },
 
-      cancelHistoryTransaction: (options) => {
+      cancelHistoryTransaction: (token, options) => {
         const {
           activeHistoryTransaction,
           currentRoom,
@@ -336,22 +388,33 @@ export const useEditorStore = create<EditorState>()(
         } = get();
 
         if (!activeHistoryTransaction) return;
+        // Token mismatch: no-op
+        if (token !== activeHistoryTransaction.id) return;
 
         if (options?.restore) {
+          // Each clone produces an independent reference
           const restoredObjects = deepClone(activeHistoryTransaction.before.objects);
           const restoredDims = deepClone(activeHistoryTransaction.before.dimensions);
+          // currentRoom gets its OWN clone of sceneObjects
           const updatedRoom: RoomInfo = {
             ...currentRoom,
-            dimensions: restoredDims,
+            dimensions: { ...restoredDims },
             sceneObjects: deepClone(restoredObjects),
             updatedAt: new Date().toISOString(),
+          };
+          // Room map entry gets its OWN separate clone
+          const roomMapEntry: RoomInfo = {
+            ...currentRoom,
+            dimensions: { ...restoredDims },
+            sceneObjects: deepClone(restoredObjects),
+            updatedAt: updatedRoom.updatedAt,
           };
 
           const projectRooms = rooms[currentProject.id] || [];
           const updatedRoomsMap = {
             ...rooms,
             [currentProject.id]: projectRooms.map((r) =>
-              r.id === currentRoom.id ? updatedRoom : r
+              r.id === currentRoom.id ? roomMapEntry : r
             ),
           };
 
@@ -366,7 +429,10 @@ export const useEditorStore = create<EditorState>()(
             activeHistoryTransaction: null,
           });
         } else {
-          set({ activeHistoryTransaction: null });
+          set({
+            activeHistoryTransaction: null,
+            isDirty: activeHistoryTransaction.wasDirty,
+          });
         }
       },
 

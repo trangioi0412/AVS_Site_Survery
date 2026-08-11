@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   SlidersHorizontal,
   Info,
@@ -32,12 +32,14 @@ export const PropertiesPanel: React.FC = () => {
   } = useEditorStore();
 
   const [activeTab, setActiveTab] = useState<"info" | "transform" | "advanced">("info");
+  const txnTokenRef = useRef<string | null>(null);
 
   const selectedObject = objects.find((obj) => obj.id === selectedObjectId);
 
   useEffect(() => {
     return () => {
-      commitHistoryTransaction();
+      commitHistoryTransaction(txnTokenRef.current);
+      txnTokenRef.current = null;
     };
   }, [selectedObjectId, commitHistoryTransaction]);
 
@@ -57,12 +59,13 @@ export const PropertiesPanel: React.FC = () => {
 
   const handleInputFocus = (fieldLabel: string) => {
     if (selectedObject) {
-      beginHistoryTransaction(`Edit property: ${fieldLabel} (${selectedObject.name})`);
+      txnTokenRef.current = beginHistoryTransaction(`Edit property: ${fieldLabel} (${selectedObject.name})`);
     }
   };
 
   const handleInputBlur = () => {
-    commitHistoryTransaction();
+    commitHistoryTransaction(txnTokenRef.current);
+    txnTokenRef.current = null;
   };
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {

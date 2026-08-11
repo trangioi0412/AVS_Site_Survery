@@ -75,7 +75,12 @@ export interface HistoryEntry {
 }
 
 export interface HistoryTransaction {
+  /** Unique token identifying this transaction. Callers must hold this to commit/cancel. */
+  id: string;
   label: string;
   before: EditorSnapshot;
   wasDirty: boolean;
+  /** Scene identity — prevents cross-Scene commits */
+  projectId: string;
+  roomId: string;
 }
